@@ -9,6 +9,7 @@ import {
   Text,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
@@ -30,6 +31,7 @@ export default function InicioScreen() {
   const [currentFilter, setCurrentFilter] = useState('all');
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   
   const filteredBooks = useMemo(() => {
     switch (currentFilter) {
@@ -69,6 +71,12 @@ export default function InicioScreen() {
     fetchBooks();
   }, []);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchBooks();
+    setRefreshing(false);
+  };
+
   const handleFilterChange = (filterId: string) => {
     setCurrentFilter(filterId);
   };
@@ -101,6 +109,16 @@ export default function InicioScreen() {
             numColumns={2}
             contentContainerStyle={styles.listContainer}
             columnWrapperStyle={styles.row}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#d500ff']} // Android
+                tintColor="#d500ff" // iOS
+                title="Actualizando libros..." // iOS
+                titleColor="#d500ff" // iOS
+              />
+            }
           />
         )}
       </ThemedView>
