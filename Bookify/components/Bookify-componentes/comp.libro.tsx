@@ -7,12 +7,21 @@ import {
     View,
 } from 'react-native';
 
-// Componente para cada elemento de libro en la lista
-const BookItem = ({ title, image }: { title: string; image: string }) => (
+interface BookItemProps {
+    id: number;
+    title: string;
+    image: string;
+    onInfoPress: (id: number) => void;
+}
+
+const BookItem = ({ id, title, image, onInfoPress }: BookItemProps) => (
   <View style={styles.bookContainer}>
     <Image source={{ uri: image }} style={styles.bookImage} />
     <ThemedText style={styles.bookTitle}>{title}</ThemedText>
-    <TouchableOpacity style={styles.infoButton}>
+    <TouchableOpacity 
+      style={styles.infoButton}
+      onPress={() => onInfoPress(id)} 
+    >
       <ThemedText style={styles.infoButtonText}>Información</ThemedText>
     </TouchableOpacity>
   </View>
