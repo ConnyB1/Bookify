@@ -5,8 +5,8 @@ services:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_USER: bookify_user     # Usuario de la base de datos
-      POSTGRES_PASSWORD: contrapalabasededatos # ¡CAMBIA ESTA CONTRASEÑA!
+      POSTGRES_USER: bookify_user
+      POSTGRES_PASSWORD: Bookify2025SecureDatabase
       POSTGRES_DB: bookify_db 
 
     ports:
@@ -14,7 +14,22 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data 
-      - ./init:/docker-entrypoint-initdb.d 
+      - ./init:/docker-entrypoint-initdb.d
+
+  backend:
+    build: .
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - db
 
 volumes:
   postgres_data:

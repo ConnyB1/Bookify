@@ -1,8 +1,10 @@
 -- ========================================
 -- Archivo: init.sql
 -- Descripción: Script de inicialización de base de datos Bookify
+-- Usuario: bookify_user (creado automáticamente por Docker)
 -- ========================================
 
+-- ========================================
 -- Eliminación previa de tablas (en orden inverso)
 DROP TABLE IF EXISTS mensaje CASCADE;
 DROP TABLE IF EXISTS chat_usuario CASCADE;

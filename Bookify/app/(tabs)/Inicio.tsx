@@ -2,66 +2,72 @@ import BookItem from '@/components/Bookify-componentes/comp.libro';
 import Header from '@/components/Bookify-componentes/Encabezadobook';
 import FilterButtons from '@/components/filter-buttons';
 import { ThemedView } from '@/components/themed-view';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   FlatList,
   StyleSheet,
   Text,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context'; 
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { API_CONFIG, buildApiUrl } from '../../config/api';
 
-const BOOKS = [
-  {
-    id: '1',
-    title: 'Pinocho',
-    image: 'https://ibb.co/ZpBMfmj9',
-    isFavorite: true,
-  },
-  {
-    id: '2',
-    title: 'Don Quijote de la Mancha',
-    image: 'https://ibb.co/ZpBMfmj9',
-    isFavorite: false,
-  },
-  {
-    id: '3',
-    title: 'El Señor de los Anillos',
-    image: 'https://ibb.co/ZpBMfmj9',
-    isFavorite: true,
-  },
-  {
-    id: '4',
-    title: 'Alicia en el país de las maravillas',
-    image: 'https://ibb.co/ZpBMfmj9',
-    isFavorite: false,
-  },
-  {
-    id: '5',
-    title: 'La Sombra del Viento',
-    image: 'https://ibb.co/ZpBMfmj9',
-    isFavorite: true,
-  },
-  {
-    id: '6',
-    title: 'Cien Años de Soledad',
-    image: 'https://ibb.co/ZpBMfmj9',
-    isFavorite: false,
-  },
-];
+interface LibroImagen {
+  id_imagen: number;
+  url_imagen: string;
+}
 
-
+interface Book {
+  id_libro: number;
+  titulo: string;
+  autor: string;
+  descripcion?: string;
+  imagenes?: LibroImagen[];
+  isFavorite?: boolean;
+}
 export default function InicioScreen() {
   const [currentFilter, setCurrentFilter] = useState('all');
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const filteredBooks = useMemo(() => {
     switch (currentFilter) {
       case 'favorites':
-        return BOOKS.filter(book => book.isFavorite);
+        return books.filter(book => book.isFavorite);
       case 'all':
       default:
-        return BOOKS;
+        return books;
     }
-  }, [currentFilter]);
+  }, [currentFilter, books]);
+
+  const fetchBooks = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS));
+      const result = await response.json();
+      
+      console.log('[DEBUG] Response from API:', result);
+      
+      if (result.success && result.data) {
+        console.log('[DEBUG] Books received:', result.data);
+        console.log('[DEBUG] First book images:', result.data[0]?.imagenes);
+        setBooks(result.data);
+      } else {
+        console.error('Error fetching books:', result.message);
+        Alert.alert('Error', 'No se pudieron cargar los libros');
+      }
+    } catch (error) {
+      console.error('Error fetching books:', error);
+      Alert.alert('Error', 'Error de conexión al cargar los libros');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBooks();
+  }, []);
 
   const handleFilterChange = (filterId: string) => {
     setCurrentFilter(filterId);
@@ -80,14 +86,23 @@ export default function InicioScreen() {
         />
 
         {/* Lista de Libros */}
-        <FlatList
-          data={filteredBooks}
-          renderItem={({ item }) => <BookItem title={item.title} image={item.image} />}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          contentContainerStyle={styles.listContainer}
-          columnWrapperStyle={styles.row}
-        />
+        {loading ? (
+          <ActivityIndicator size="large" color="#d500ff" style={styles.loader} />
+        ) : (
+          <FlatList
+            data={filteredBooks}
+            renderItem={({ item }) => (
+              <BookItem 
+                title={item.titulo} 
+                image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
+              />
+            )}
+            keyExtractor={(item) => item.id_libro.toString()}
+            numColumns={2}
+            contentContainerStyle={styles.listContainer}
+            columnWrapperStyle={styles.row}
+          />
+        )}
       </ThemedView>
     </SafeAreaView>
   );
@@ -108,5 +123,10 @@ const styles = StyleSheet.create({
   },
   row: {
     justifyContent: 'space-between',
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

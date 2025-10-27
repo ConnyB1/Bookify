@@ -4,11 +4,13 @@ import {
   Column,
   ManyToOne,
   ManyToMany,
+  OneToMany,
   JoinTable,
   JoinColumn,
 } from 'typeorm';
 import { Usuario } from './user.entity';
 import { Genero } from './genero.entity';
+import { LibroImagen } from './libro-imagen.entity';
 
 export enum EstadoLibro {
   AVAILABLE = 'available',
@@ -47,4 +49,7 @@ export class Libro {
     inverseJoinColumn: { name: 'id_genero', referencedColumnName: 'id_genero' },
   })
   generos: Genero[];
+
+  @OneToMany(() => LibroImagen, (imagen) => imagen.libro, { cascade: true })
+  imagenes: LibroImagen[];
 }

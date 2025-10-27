@@ -1,9 +1,40 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { BookModule } from './book/book.module';
+import { ImagesModule } from './images/images.module';
 
 @Module({
-  imports: [],
+  imports: [
+    // Configuración de variables de entorno
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+    
+    // Configuración de TypeORM con PostgreSQL
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST'),
+        port: +configService.get('DB_PORT'),
+        username: configService.get('DB_USERNAME'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: false, // Usamos init.sql en su lugar
+        logging: true,
+      }),
+      inject: [ConfigService],
+    }),
+    
+    // Módulos de la aplicación
+    BookModule,
+    ImagesModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
