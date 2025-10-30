@@ -8,23 +8,21 @@ import {
     ScrollView,
 } from 'react-native';
 import GenreChip from './GenreChip';
-
+interface BookItemProps {
+    id: number;
+    title: string;
+    image: string;
+    genres?: string[];
+    onInfoPress: (id: number) => void;
+}
 // Componente para cada elemento de libro en la lista
-const BookItem = ({ 
-  title, 
-  image, 
-  genres = [] 
-}: { 
-  title: string; 
-  image: string; 
-  genres?: string[] 
-}) => (
+const BookItem = ({ id, title, image, genres = [], onInfoPress }: BookItemProps) => (
   <View style={styles.bookContainer}>
     <Image source={{ uri: image }} style={styles.bookImage} />
     <ThemedText style={styles.bookTitle}>{title}</ThemedText>
-    
-    {/* Géneros con colores */}
-    {genres.length > 0 && (
+    <TouchableOpacity style={styles.infoButton}>
+      <ThemedText style={styles.infoButtonText}>Información</ThemedText>
+      {genres.length > 0 && (
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
@@ -46,9 +44,6 @@ const BookItem = ({
         )}
       </ScrollView>
     )}
-    
-    <TouchableOpacity style={styles.infoButton}>
-      <ThemedText style={styles.infoButtonText}>Información</ThemedText>
     </TouchableOpacity>
   </View>
 );

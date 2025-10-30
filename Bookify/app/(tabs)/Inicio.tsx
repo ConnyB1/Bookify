@@ -6,13 +6,13 @@ import React, { useMemo, useState, useEffect } from 'react';
 import {
   FlatList,
   StyleSheet,
-  Text,
   ActivityIndicator,
   Alert,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
+import { useRouter } from 'expo-router';
 
 interface LibroImagen {
   id_imagen: number;
@@ -33,11 +33,13 @@ interface Book {
   generos?: Genero[];
   isFavorite?: boolean;
 }
+
 export default function InicioScreen() {
   const [currentFilter, setCurrentFilter] = useState('all');
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter(); // 🛑 AÑADIDO: Inicializar el router
   
   const filteredBooks = useMemo(() => {
     switch (currentFilter) {
@@ -86,6 +88,12 @@ export default function InicioScreen() {
   const handleFilterChange = (filterId: string) => {
     setCurrentFilter(filterId);
   };
+  
+  // 🛑 FUNCIÓN CRÍTICA: Manejar el click y navegar 🛑
+  const handleBookInfoPress = (bookId: number) => {
+    router.push(`/libro/${bookId}`); 
+  };
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -107,9 +115,11 @@ export default function InicioScreen() {
             data={filteredBooks}
             renderItem={({ item }) => (
               <BookItem 
+                id={item.id_libro} // 🛑 AÑADIDO: Pasar el ID para la navegación
                 title={item.titulo} 
-                image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'}
+                image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
                 genres={item.generos?.map(g => g.nombre) || []}
+                onInfoPress={handleBookInfoPress}
               />
             )}
             keyExtractor={(item) => item.id_libro.toString()}
