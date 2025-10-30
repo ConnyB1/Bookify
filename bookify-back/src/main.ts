@@ -12,6 +12,7 @@ async function bootstrap() {
       'http://localhost:8081',  // Metro bundler
       'http://192.168.50.75:19006', // Expo web con IP local
       'exp://192.168.50.75:19000', // Expo Go con IP local
+      'http://10.41.72.78:19006', // Expo web con IP de la red actual
       '*', // Permitir todos los orígenes temporalmente para desarrollo
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

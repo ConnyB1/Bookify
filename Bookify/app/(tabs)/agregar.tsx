@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
+import { getGenreColor, getGenreColorLight } from '../../utils/genreColors';
 
 const GENRES = [
   'Ciencia Ficción',
@@ -302,14 +303,20 @@ export default function AgregarScreen() {
                     key={genre}
                     style={[
                       styles.genreButton,
-                      selectedGenres.includes(genre) && styles.genreButtonActive
+                      selectedGenres.includes(genre) && {
+                        backgroundColor: getGenreColor(genre),
+                        borderColor: getGenreColor(genre),
+                      }
                     ]}
                     onPress={() => toggleGenre(genre)}
                   >
                     <ThemedText 
                       style={[
                         styles.genreText,
-                        selectedGenres.includes(genre) && styles.genreTextActive
+                        selectedGenres.includes(genre) && {
+                          color: 'white',
+                          fontWeight: 'bold',
+                        }
                       ]}
                     >
                       {genre}

@@ -16,12 +16,16 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 0,
+    paddingBottom: 10,
   },
   appName: {
     fontSize: 32,
     fontWeight: 'bold',
+    lineHeight: 38, 
+    paddingBottom: 4,
   },
 });
 

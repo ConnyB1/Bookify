@@ -5,13 +5,48 @@ import {
     StyleSheet,
     TouchableOpacity,
     View,
+    ScrollView,
 } from 'react-native';
+import GenreChip from './GenreChip';
 
 // Componente para cada elemento de libro en la lista
-const BookItem = ({ title, image }: { title: string; image: string }) => (
+const BookItem = ({ 
+  title, 
+  image, 
+  genres = [] 
+}: { 
+  title: string; 
+  image: string; 
+  genres?: string[] 
+}) => (
   <View style={styles.bookContainer}>
     <Image source={{ uri: image }} style={styles.bookImage} />
     <ThemedText style={styles.bookTitle}>{title}</ThemedText>
+    
+    {/* Géneros con colores */}
+    {genres.length > 0 && (
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.genresContainer}
+        contentContainerStyle={styles.genresContent}
+      >
+        {genres.slice(0, 2).map((genre, index) => (
+          <GenreChip 
+            key={index} 
+            genre={genre} 
+            size="small"
+            variant="filled"
+          />
+        ))}
+        {genres.length > 2 && (
+          <View style={styles.moreGenres}>
+            <ThemedText style={styles.moreGenresText}>+{genres.length - 2}</ThemedText>
+          </View>
+        )}
+      </ScrollView>
+    )}
+    
     <TouchableOpacity style={styles.infoButton}>
       <ThemedText style={styles.infoButtonText}>Información</ThemedText>
     </TouchableOpacity>
@@ -37,7 +72,28 @@ const styles = StyleSheet.create({
   bookTitle: {
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  genresContainer: {
+    maxHeight: 30,
+    marginBottom: 8,
+  },
+  genresContent: {
+    alignItems: 'center',
+  },
+  moreGenres: {
+    backgroundColor: '#444',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreGenresText: {
+    color: '#ccc',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   infoButton: {
     backgroundColor: '#444',

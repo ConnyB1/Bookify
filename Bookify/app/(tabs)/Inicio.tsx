@@ -19,12 +19,18 @@ interface LibroImagen {
   url_imagen: string;
 }
 
+interface Genero {
+  id_genero: number;
+  nombre: string;
+}
+
 interface Book {
   id_libro: number;
   titulo: string;
   autor: string;
   descripcion?: string;
   imagenes?: LibroImagen[];
+  generos?: Genero[];
   isFavorite?: boolean;
 }
 export default function InicioScreen() {
@@ -102,7 +108,8 @@ export default function InicioScreen() {
             renderItem={({ item }) => (
               <BookItem 
                 title={item.titulo} 
-                image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
+                image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'}
+                genres={item.generos?.map(g => g.nombre) || []}
               />
             )}
             keyExtractor={(item) => item.id_libro.toString()}
