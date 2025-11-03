@@ -1,12 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAuth } from '@/contexts/AuthContext';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Mostrar loading mientras verifica la sesión
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#d500ff" />
+      </View>
+    );
+  }
+
+  // Redirigir al login si no está autenticado
+  if (!isAuthenticated) {
+    return <Redirect href="/Auth/Login" />;
+  }
 
   return (
     <Tabs
@@ -14,11 +31,13 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#d500ff', 
         tabBarInactiveTintColor: '#666666',
         tabBarStyle: {
+          position: 'absolute',
           backgroundColor: '#1A1D1F', // Fondo oscuro
           borderTopWidth: 0,
           height: 80,
-          paddingBottom: 10,
+          paddingBottom: 20,
           paddingTop: 10,
+          
         },
         headerShown: false,
         tabBarButton: HapticTab,
@@ -86,3 +105,12 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+});

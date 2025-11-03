@@ -18,11 +18,10 @@ interface BookItemProps {
 // Componente para cada elemento de libro en la lista
 const BookItem = ({ id, title, image, genres = [], onInfoPress }: BookItemProps) => (
   <View style={styles.bookContainer}>
+    <TouchableOpacity onPress={() => onInfoPress(id)}>
     <Image source={{ uri: image }} style={styles.bookImage} />
     <ThemedText style={styles.bookTitle}>{title}</ThemedText>
-    <TouchableOpacity style={styles.infoButton}>
-      <ThemedText style={styles.infoButtonText}>Información</ThemedText>
-      {genres.length > 0 && (
+    {genres.length > 0 && (
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
@@ -52,7 +51,7 @@ const styles = StyleSheet.create({
   bookContainer: {
     flex: 1,
     margin: 8,
-    maxWidth: '46%', // Para asegurar que haya espacio entre las dos columnas
+    maxWidth: '100%', // Para asegurar que haya espacio entre las dos columnas
     alignItems: 'center',
     backgroundColor: '#222',
     borderRadius: 12,

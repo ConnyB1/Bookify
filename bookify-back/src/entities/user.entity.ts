@@ -16,11 +16,11 @@ export class Usuario {
   @Column({ name: 'password_hash' })
   password_hash: string;
 
-  @Column({ nullable: true })
-  genero: string;
+  @Column({ nullable: true, type: 'varchar' })
+  genero: string | null;
 
-  @Column({ name: 'foto_perfil_url', nullable: true })
-  foto_perfil_url: string;
+  @Column({ name: 'foto_perfil_url', nullable: true, type: 'varchar' })
+  foto_perfil_url: string | null;
 
   // ✅ Relación con los libros que posee el usuario
   @OneToMany(() => Libro, (libro) => libro.propietario)
