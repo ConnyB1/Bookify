@@ -1,4 +1,4 @@
-const DEFAULT_API = 'http://192.168.50.75:3000'; //'http://10.41.72.78:3000'
+const DEFAULT_API = 'http://10.41.72.78:3000'; //'http://192.168.50.75:3000' 
 
 export const API_CONFIG = {
   // Usa la variable de entorno EXPO_PUBLIC_API_URL si está definida (útil para Expo en dispositivo),

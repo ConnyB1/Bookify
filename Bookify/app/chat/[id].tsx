@@ -76,7 +76,11 @@ export default function ChatRoomScreen() {
     console.log('🔄 Setting up Supabase Realtime for chat:', chatId);
 
     const channel = supabase
-      .channel(`chat-${chatId}`)
+      .channel(`chat-${chatId}`, {
+        config: {
+          broadcast: { self: false }, // No recibir mis propios mensajes
+        },
+      })
       .on(
         'postgres_changes',
         {
@@ -87,14 +91,23 @@ export default function ChatRoomScreen() {
         },
         async (payload) => {
           console.log('✅ New message received via Realtime:', payload);
+          console.log('📦 Payload new record:', payload.new);
           
-          // El payload viene sin la info del emisor, cargar mensaje completo
+          // Verificar si el mensaje es de otro usuario
+          const newMessageData = payload.new as any;
+          if (newMessageData.id_usuario_emisor === user?.id_usuario) {
+            console.log('⏭️ Ignorando mi propio mensaje');
+            return;
+          }
+          
+          // Cargar solo el nuevo mensaje específico
           try {
             const response = await fetch(
               buildApiUrl(`/chat/${chatId}/messages?userId=${user?.id_usuario}`)
             );
             const result = await response.json();
             if (result.success && result.data) {
+              console.log('🔄 Actualizando lista de mensajes (nuevo mensaje detectado)');
               setMessages(result.data);
               setTimeout(() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
@@ -111,6 +124,8 @@ export default function ChatRoomScreen() {
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ Realtime subscription error, falling back to polling');
           startPolling();
+        } else {
+          console.log(`📡 Realtime status: ${status}`);
         }
       });
 
@@ -158,6 +173,7 @@ export default function ChatRoomScreen() {
   };
 
   const startPolling = () => {
+    console.log('🔄 Iniciando polling cada 2 segundos...');
     // Polling cada 2 segundos para nuevos mensajes
     pollingIntervalRef.current = setInterval(() => {
       if (chatId && user) {
@@ -168,6 +184,7 @@ export default function ChatRoomScreen() {
 
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
+      console.log('⏹️ Deteniendo polling...');
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
@@ -189,6 +206,7 @@ export default function ChatRoomScreen() {
       const result = await response.json();
 
       if (result.success && result.data && result.data.length > 0) {
+        console.log(`📬 Polling: ${result.data.length} mensaje(s) nuevo(s)`);
         setMessages((prev) => [...prev, ...result.data]);
         // Auto-scroll al final
         setTimeout(() => {
@@ -292,7 +310,7 @@ export default function ChatRoomScreen() {
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 40}
       >
         {/* Header */}
         <View style={styles.header}>
