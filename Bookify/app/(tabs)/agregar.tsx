@@ -227,21 +227,6 @@ export default function AgregarScreen() {
         <View style={styles.header}>
           <ThemedText style={styles.title}>Agregar Libro</ThemedText>
           <View style={styles.headerButtons}>
-            {/* Botón de Debug - TEMPORAL */}
-            <TouchableOpacity 
-              onPress={() => {
-                Alert.alert(
-                  'Debug Info',
-                  `Usuario: ${user?.nombre_usuario || 'No autenticado'}\nID: ${user?.id_usuario || 'N/A'}\nEmail: ${user?.email || 'N/A'}`,
-                  [{ text: 'OK' }]
-                );
-                console.log('[DEBUG] Usuario completo:', JSON.stringify(user, null, 2));
-              }}
-              style={[styles.saveButton, { backgroundColor: '#555', marginRight: 10 }]}
-            >
-              <ThemedText style={styles.saveButtonText}>🐛</ThemedText>
-            </TouchableOpacity>
-            
             <TouchableOpacity 
               onPress={saveBook}
               style={styles.saveButton}
