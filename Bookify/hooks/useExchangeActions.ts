@@ -101,10 +101,6 @@ export function useExchangeActions({
           text: 'Aceptar',
           onPress: () => handleExchangeResponse(exchangeId, 'accepted', notification),
         },
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
       ]
     );
   }, [showAlert, closeNotifications]);
