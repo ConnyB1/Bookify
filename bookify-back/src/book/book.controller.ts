@@ -33,11 +33,20 @@ export class BookController {
   @Post()
   async createBook(@Body() createBookDto: CreateBookDto): Promise<{ success: boolean; data: Libro; message: string }> {
     try {
+      console.log('[DEBUG] Datos recibidos para crear libro:', createBookDto);
+      console.log('[DEBUG] id_usuario recibido:', createBookDto.id_usuario);
+      
       if (!createBookDto.titulo || !createBookDto.autor) {
         throw new BadRequestException('Título y autor son requeridos');
       }
 
+      if (!createBookDto.id_usuario) {
+        throw new BadRequestException('El ID de usuario es requerido');
+      }
+
       const book = await this.bookService.create(createBookDto);
+      
+      console.log('[DEBUG] Libro creado con id_propietario:', book.id_propietario);
       
       return {
         success: true,

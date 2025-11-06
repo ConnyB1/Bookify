@@ -12,9 +12,7 @@ export class AuthService {
     private userRepository: Repository<Usuario>,
   ) {}
 
-  /**
-   * Generar token JWT simple
-   */
+
   private generateToken(userId: number, username: string): string {
     const payload = {
       id: userId,
@@ -24,19 +22,14 @@ export class AuthService {
     return Buffer.from(JSON.stringify(payload)).toString('base64');
   }
 
-  /**
-   * Registrar un nuevo usuario
-   */
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
     try {
       const { nombre_usuario, email, password, genero } = registerDto;
 
-      // Validaciones
       if (!nombre_usuario || !email || !password) {
         throw new BadRequestException('Todos los campos son obligatorios');
       }
 
-      // Verificar si el usuario ya existe
       const existingUser = await this.userRepository.findOne({
         where: [{ email }, { nombre_usuario }],
       });
@@ -50,21 +43,17 @@ export class AuthService {
         }
       }
 
-      // Validar formato de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         throw new BadRequestException('Formato de email inválido');
       }
 
-      // Validar contraseña
       if (password.length < 4) {
         throw new BadRequestException('La contraseña debe tener al menos 4 caracteres');
       }
 
-      // Hash de la contraseña
       const passwordHash = await bcrypt.hash(password, 10);
 
-      // Crear y guardar usuario
       const newUser = this.userRepository.create({
         nombre_usuario,
         email: email.toLowerCase(),
@@ -74,7 +63,6 @@ export class AuthService {
 
       const savedUser = await this.userRepository.save(newUser);
 
-      // Generar token automáticamente
       const token = this.generateToken(savedUser.id_usuario, savedUser.nombre_usuario);
 
       return {

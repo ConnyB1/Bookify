@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { getGenreColor, getGenreColorLight } from '../../utils/genreColors';
+import { useAuth } from '@/contexts/AuthContext';
 
 const GENRES = [
   'Ciencia Ficción',
@@ -29,6 +30,8 @@ const GENRES = [
 ];
 
 export default function AgregarScreen() {
+  const { user } = useAuth();
+  
   // Estados para el formulario de agregar libro
   const [bookData, setBookData] = useState({
     title: '',
@@ -160,6 +163,13 @@ export default function AgregarScreen() {
       return;
     }
 
+    // Validar que el usuario esté autenticado
+    if (!user || !user.id_usuario) {
+      Alert.alert('Error', 'Debes iniciar sesión para agregar libros');
+      console.error('[DEBUG] Usuario no autenticado:', user);
+      return;
+    }
+
     try {
       // Preparar datos del libro para enviar al backend
       const bookToSave = {
@@ -168,10 +178,11 @@ export default function AgregarScreen() {
         descripcion: bookData.description,
         generos: selectedGenres,
         imagenes: bookImages,
-        id_usuario: 1, // TODO: Obtener del usuario logueado
+        id_usuario: user.id_usuario, // Usuario autenticado (ya validado arriba)
       };
 
-      console.log('Libro a guardar:', bookToSave);
+      console.log('[DEBUG] Usuario actual:', user);
+      console.log('[DEBUG] Libro a guardar:', bookToSave);
       
       // Llamada al endpoint del backend para guardar en DB
       const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS), {
@@ -215,12 +226,29 @@ export default function AgregarScreen() {
         {/* Header */}
         <View style={styles.header}>
           <ThemedText style={styles.title}>Agregar Libro</ThemedText>
-          <TouchableOpacity 
-            onPress={saveBook}
-            style={styles.saveButton}
-          >
-            <ThemedText style={styles.saveButtonText}>Guardar</ThemedText>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            {/* Botón de Debug - TEMPORAL */}
+            <TouchableOpacity 
+              onPress={() => {
+                Alert.alert(
+                  'Debug Info',
+                  `Usuario: ${user?.nombre_usuario || 'No autenticado'}\nID: ${user?.id_usuario || 'N/A'}\nEmail: ${user?.email || 'N/A'}`,
+                  [{ text: 'OK' }]
+                );
+                console.log('[DEBUG] Usuario completo:', JSON.stringify(user, null, 2));
+              }}
+              style={[styles.saveButton, { backgroundColor: '#555', marginRight: 10 }]}
+            >
+              <ThemedText style={styles.saveButtonText}>🐛</ThemedText>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={saveBook}
+              style={styles.saveButton}
+            >
+              <ThemedText style={styles.saveButtonText}>Guardar</ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -350,6 +378,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
     marginBottom: 20,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,

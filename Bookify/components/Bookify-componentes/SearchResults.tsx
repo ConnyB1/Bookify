@@ -2,6 +2,7 @@ import React from 'react';
 import { View, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import BookItem from './comp.libro';
+import { useRouter } from 'expo-router';
 
 interface Book {
   id_libro: number;
@@ -25,6 +26,12 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   searchText,
   selectedGenres
 }) => {
+  const router = useRouter();
+
+  const handleBookInfoPress = (bookId: number) => {
+    router.push(`/libro/${bookId}`);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -67,9 +74,11 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         data={books}
         renderItem={({ item }) => (
           <BookItem 
+            id={item.id_libro}
             title={item.titulo} 
             image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'}
             genres={item.generos?.map(g => g.nombre) || []}
+            onInfoPress={handleBookInfoPress}
           />
         )}
         keyExtractor={(item) => item.id_libro.toString()}

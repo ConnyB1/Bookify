@@ -1,5 +1,9 @@
+const DEFAULT_API = 'http://192.168.50.75:3000'; //'http://10.41.72.78:3000'
+
 export const API_CONFIG = {
-  BASE_URL: 'http://10.41.72.78:3000', 
+  // Usa la variable de entorno EXPO_PUBLIC_API_URL si está definida (útil para Expo en dispositivo),
+  // si no, usa el valor por defecto configurado.
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || DEFAULT_API,
 
   ENDPOINTS: {
     UPLOAD_IMAGE: '/api/images/upload/book',
@@ -11,6 +15,13 @@ export const API_CONFIG = {
     CONFIRM_EMAIL: '/api/auth/confirm',
     RESEND_CODE: '/api/auth/resend-code',
     GET_PROFILE: '/api/auth/me',
+    // Exchange endpoints
+    EXCHANGE_REQUEST: '/api/exchange/request',
+    EXCHANGE_RECEIVED: '/api/exchange/received',
+    EXCHANGE_SENT: '/api/exchange/sent',
+    // Notifications endpoints
+    NOTIFICATIONS: '/api/notifications',
+    NOTIFICATIONS_UNREAD_COUNT: '/api/notifications/unread-count',
   }
 };
 

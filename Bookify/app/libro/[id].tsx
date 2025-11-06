@@ -1,15 +1,19 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, ActivityIndicator, Alert, Image, Dimensions } from 'react-native';
+import { StyleSheet, ScrollView, ActivityIndicator, Alert, Image, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Interfaces necesarias para el DTO (deberían estar en config/api.ts)
 interface ImagenDTO { url_imagen: string; }
 interface GeneroDTO { nombre: string; }
-interface PropietarioDTO { nombre_usuario: string; }
+interface PropietarioDTO { 
+  id_usuario: number;
+  nombre_usuario: string; 
+}
 
 interface LibroDTO {
   id_libro: number;
@@ -26,8 +30,11 @@ const { width } = Dimensions.get('window');
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
+  const { user } = useAuth();
   const [libro, setLibro] = useState<LibroDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sendingRequest, setSendingRequest] = useState(false);
   
   const bookId = typeof id === 'string' ? parseInt(id, 10) : undefined;
   
@@ -72,6 +79,68 @@ export default function BookDetailScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExchangeRequest = async () => {
+    if (!user) {
+      Alert.alert('Error', 'Debes iniciar sesión para solicitar un intercambio');
+      return;
+    }
+
+    if (!libro) return;
+
+    // Verificar que no sea el propietario
+    if (libro.propietario.id_usuario === user.id_usuario) {
+      Alert.alert('Error', 'No puedes solicitar intercambio de tu propio libro');
+      return;
+    }
+
+    Alert.alert(
+      'Solicitar Intercambio',
+      `¿Deseas solicitar intercambio del libro "${libro.titulo}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Enviar Solicitud',
+          onPress: async () => {
+            setSendingRequest(true);
+            try {
+              const response = await fetch(buildApiUrl('/api/exchange/request'), {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  id_libro_solicitado: libro.id_libro,
+                  id_usuario_solicitante: user.id_usuario,
+                  id_usuario_receptor: libro.propietario.id_usuario,
+                }),
+              });
+
+              const result = await response.json();
+
+              if (result.success) {
+                Alert.alert(
+                  'Éxito',
+                  'Solicitud de intercambio enviada correctamente. El propietario recibirá una notificación.',
+                  [{ text: 'OK', onPress: () => router.back() }]
+                );
+              } else {
+                throw new Error(result.message || 'Error al enviar solicitud');
+              }
+            } catch (error) {
+              console.error('Error sending exchange request:', error);
+              Alert.alert(
+                'Error',
+                `No se pudo enviar la solicitud: ${error instanceof Error ? error.message : 'Error desconocido'}`
+              );
+            } finally {
+              setSendingRequest(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -131,6 +200,26 @@ export default function BookDetailScreen() {
             {libro.generos?.map(g => g.nombre).join(', ') || 'Sin géneros asignados.'}
           </ThemedText>
 
+          {/* Botón de Intercambio */}
+          <TouchableOpacity
+            style={[
+              styles.exchangeButton,
+              (sendingRequest || libro.propietario.id_usuario === user?.id_usuario) && styles.exchangeButtonDisabled
+            ]}
+            onPress={handleExchangeRequest}
+            disabled={sendingRequest || libro.propietario.id_usuario === user?.id_usuario}
+          >
+            {sendingRequest ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <ThemedText style={styles.exchangeButtonText}>
+                {libro.propietario.id_usuario === user?.id_usuario
+                  ? 'Tu libro'
+                  : 'Solicitar Intercambio'}
+              </ThemedText>
+            )}
+          </TouchableOpacity>
+
         </ThemedView>
       </ScrollView>
     </SafeAreaView>
@@ -141,6 +230,38 @@ const styles = StyleSheet.create({
   safeArea: { 
     flex: 1, 
     backgroundColor: '#151718' 
+  },
+  exchangeButton: {
+    marginTop: 30,
+    backgroundColor: '#d500ff',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#d500ff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  exchangeButtonDisabled: {
+    backgroundColor: '#666',
+    shadowOpacity: 0,
+  },
+  exchangeButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    marginRight: 10,
   },
   container: { 
     padding: 20 

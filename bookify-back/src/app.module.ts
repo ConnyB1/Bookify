@@ -6,6 +6,9 @@ import { AppService } from './app.service';
 import { BookModule } from './book/book.module';
 import { ImagesModule } from './images/images.module';
 import { AuthModule } from './auth/auth.module';
+import { ChatModule } from './chat/chat.module';
+import { ExchangeModule } from './exchange/exchange.module';
+import { NotificationModule } from './notifications/notification.module';
 
 @Module({
   imports: [
@@ -36,6 +39,9 @@ import { AuthModule } from './auth/auth.module';
     BookModule,
     ImagesModule,
     AuthModule,
+    ChatModule,
+    ExchangeModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

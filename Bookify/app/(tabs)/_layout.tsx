@@ -47,14 +47,9 @@ export default function TabLayout() {
         },
       }}>
       
-      {/* 🛑 FIX: Registra la ruta dinámica fuera de las pestañas 🛑 */}
-      <Tabs.Screen
-        name="libro/[id]"
-        options={{
-          href: null, // Oculta esta pantalla de la barra de pestañas
-          headerShown: false,
-        }}
-      />
+      {/* Nota: la ruta dinámica `libro/[id]` debe registrarse fuera de las pestañas
+          (por ejemplo en app/_layout o una pila aparte). Mantener la barra de pestañas
+          limpia evita el warning sobre rutas anidadas. */}
       
       <Tabs.Screen
         name="Inicio"

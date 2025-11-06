@@ -29,9 +29,10 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
-  
-  console.log(`🚀 Backend running on http://localhost:${port}`);
-  console.log(`📁 Image upload endpoint: http://localhost:${port}/api/images/upload/book`);
+  // Escuchar en todas las interfaces para que dispositivos en la LAN puedan alcanzar el backend
+  await app.listen(port, '0.0.0.0');
+  const url = await app.getUrl();
+  console.log(`🚀 Backend running on ${url}`);
+  console.log(`📁 Image upload endpoint: ${url}/api/images/upload/book`);
 }
 bootstrap();

@@ -2,6 +2,7 @@ import BookItem from '@/components/Bookify-componentes/comp.libro';
 import Header from '@/components/Bookify-componentes/Encabezadobook';
 import FilterButtons from '@/components/filter-buttons';
 import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   FlatList,
@@ -9,10 +10,12 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 interface LibroImagen {
   id_imagen: number;
@@ -39,14 +42,20 @@ export default function InicioScreen() {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const router = useRouter(); // 🛑 AÑADIDO: Inicializar el router
+  const router = useRouter(); 
   
   const filteredBooks = useMemo(() => {
+    console.log('[DEBUG] Current filter:', currentFilter);
+    console.log('[DEBUG] Total books:', books.length);
+    
     switch (currentFilter) {
       case 'favorites':
-        return books.filter(book => book.isFavorite);
+        const favorites = books.filter(book => book.isFavorite);
+        console.log('[DEBUG] Favorites count:', favorites.length);
+        return favorites;
       case 'all':
       default:
+        console.log('[DEBUG] Showing all books');
         return books;
     }
   }, [currentFilter, books]);
@@ -89,7 +98,6 @@ export default function InicioScreen() {
     setCurrentFilter(filterId);
   };
   
-  // 🛑 FUNCIÓN CRÍTICA: Manejar el click y navegar 🛑
   const handleBookInfoPress = (bookId: number) => {
     router.push(`/libro/${bookId}`); 
   };
@@ -110,33 +118,51 @@ export default function InicioScreen() {
         {/* Lista de Libros */}
         {loading ? (
           <ActivityIndicator size="large" color="#d500ff" style={styles.loader} />
+        ) : filteredBooks.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="book-outline" size={80} color="#666" />
+            <ThemedText style={styles.emptyTitle}>
+              {currentFilter === 'favorites' ? 'Sin favoritos' : 'No hay libros disponibles'}
+            </ThemedText>
+            <ThemedText style={styles.emptySubtitle}>
+              {currentFilter === 'favorites' 
+                ? 'Aún no has marcado ningún libro como favorito' 
+                : 'Desliza hacia abajo para actualizar'}
+            </ThemedText>
+          </View>
         ) : (
-          <FlatList
-            data={filteredBooks}
-            renderItem={({ item }) => (
-              <BookItem 
-                id={item.id_libro} // 🛑 AÑADIDO: Pasar el ID para la navegación
-                title={item.titulo} 
-                image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
-                genres={item.generos?.map(g => g.nombre) || []}
-                onInfoPress={handleBookInfoPress}
-              />
-            )}
-            keyExtractor={(item) => item.id_libro.toString()}
-            numColumns={2}
-            contentContainerStyle={styles.listContainer}
-            columnWrapperStyle={styles.row}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#d500ff']} // Android
-                tintColor="#d500ff" // iOS
-                title="Actualizando libros..." // iOS
-                titleColor="#d500ff" // iOS
-              />
-            }
-          />
+          <>
+            {console.log('[DEBUG] Rendering FlatList with', filteredBooks.length, 'books')}
+            <FlatList
+              data={filteredBooks}
+              renderItem={({ item }) => {
+                console.log('[DEBUG] Rendering book:', item.titulo);
+                return (
+                  <BookItem 
+                    id={item.id_libro} 
+                    title={item.titulo} 
+                    image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
+                    genres={item.generos?.map(g => g.nombre) || []}
+                    onInfoPress={handleBookInfoPress}
+                  />
+                );
+              }}
+              keyExtractor={(item) => item.id_libro.toString()}
+              numColumns={2}
+              contentContainerStyle={styles.listContainer}
+              columnWrapperStyle={styles.row}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#d500ff']} 
+                  tintColor="#d500ff" 
+                  title="Actualizando libros..." 
+                  titleColor="#d500ff"
+                />
+              }
+            />
+          </>
         )}
       </ThemedView>
     </SafeAreaView>
@@ -163,5 +189,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

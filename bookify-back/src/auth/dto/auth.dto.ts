@@ -6,7 +6,7 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  nombre_usuario: string; // Puede ser nombre_usuario o email
+  nombre_usuario: string; 
   password: string;
 }
 
