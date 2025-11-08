@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Get, Headers, UnauthorizedException, Param, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Post, Body, Get, Headers, UnauthorizedException, Param, Put, Patch, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { UpdateLocationDto, LocationResponseDto } from './dto/location.dto';
 
 @Controller('api/auth')
 export class AuthController {
@@ -51,5 +52,43 @@ export class AuthController {
     @Body() body: { photoUrl: string },
   ) {
     return this.authService.updateProfilePhoto(+userId, body.photoUrl);
+  }
+
+  // ========================================
+  // Endpoints de Ubicación
+  // ========================================
+
+  @Get('location/:userId')
+  async getLocation(@Param('userId') userId: string): Promise<{ success: boolean; data: LocationResponseDto }> {
+    const location = await this.authService.getUserLocation(+userId);
+    return {
+      success: true,
+      data: location,
+    };
+  }
+
+  @Patch('location/:userId')
+  async updateLocation(
+    @Param('userId') userId: string,
+    @Body() locationDto: UpdateLocationDto,
+  ): Promise<{ success: boolean; message: string; data: LocationResponseDto }> {
+    const updatedLocation = await this.authService.updateUserLocation(+userId, locationDto);
+    return {
+      success: true,
+      message: 'Ubicación actualizada exitosamente',
+      data: updatedLocation,
+    };
+  }
+
+  @Patch('search-radius/:userId')
+  async updateSearchRadius(
+    @Param('userId') userId: string,
+    @Body() body: { radio_busqueda_km: number },
+  ): Promise<{ success: boolean; message: string }> {
+    await this.authService.updateSearchRadius(+userId, body.radio_busqueda_km);
+    return {
+      success: true,
+      message: 'Radio de búsqueda actualizado',
+    };
   }
 }

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Usuario } from '../entities/user.entity';
 import { RegisterDto, LoginDto, AuthResponseDto } from './dto/auth.dto';
+import { UpdateLocationDto, LocationResponseDto } from './dto/location.dto';
 
 @Injectable()
 export class AuthService {
@@ -202,5 +203,80 @@ export class AuthService {
       console.error('Error actualizando foto:', error);
       throw new BadRequestException('Error al actualizar foto de perfil');
     }
+  }
+
+  // ========================================
+  // Métodos de Ubicación
+  // ========================================
+
+  /**
+   * Obtener ubicación del usuario
+   */
+  async getUserLocation(userId: number): Promise<LocationResponseDto> {
+    const user = await this.userRepository.findOne({ where: { id_usuario: userId } });
+
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    return {
+      latitud: user.latitud,
+      longitud: user.longitud,
+      radio_busqueda_km: user.radio_busqueda_km,
+      ciudad: user.ciudad,
+      ubicacion_actualizada_at: user.ubicacion_actualizada_at,
+    };
+  }
+
+  /**
+   * Actualizar ubicación del usuario
+   */
+  async updateUserLocation(userId: number, locationDto: UpdateLocationDto): Promise<LocationResponseDto> {
+    const user = await this.userRepository.findOne({ where: { id_usuario: userId } });
+
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    user.latitud = locationDto.latitud;
+    user.longitud = locationDto.longitud;
+    user.ciudad = locationDto.ciudad || user.ciudad;
+    user.ubicacion_actualizada_at = new Date();
+
+    if (locationDto.radio_busqueda_km) {
+      user.radio_busqueda_km = locationDto.radio_busqueda_km;
+    }
+
+    const updatedUser = await this.userRepository.save(user);
+
+    console.log(`📍 [Location] Usuario ${userId} actualizó ubicación: ${locationDto.ciudad || 'Sin ciudad'}`);
+
+    return {
+      latitud: updatedUser.latitud,
+      longitud: updatedUser.longitud,
+      radio_busqueda_km: updatedUser.radio_busqueda_km,
+      ciudad: updatedUser.ciudad,
+      ubicacion_actualizada_at: updatedUser.ubicacion_actualizada_at,
+    };
+  }
+
+  /**
+   * Actualizar solo el radio de búsqueda
+   */
+  async updateSearchRadius(userId: number, radiusKm: number): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id_usuario: userId } });
+
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    if (radiusKm < 1 || radiusKm > 100) {
+      throw new BadRequestException('El radio debe estar entre 1 y 100 km');
+    }
+
+    user.radio_busqueda_km = radiusKm;
+    await this.userRepository.save(user);
+
+    console.log(`🔍 [Location] Usuario ${userId} cambió radio de búsqueda a ${radiusKm} km`);
   }
 }

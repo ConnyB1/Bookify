@@ -97,6 +97,14 @@ export default function TabLayout() {
         }}
       />
       
+      <Tabs.Screen
+        name="ubicacion"
+        options={{
+          href: null, // Oculta de la barra de tabs
+          title: 'Ubicación',
+        }}
+      />
+      
     </Tabs>
   );
 }

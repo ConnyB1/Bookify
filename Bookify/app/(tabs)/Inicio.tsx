@@ -63,9 +63,17 @@ export default function InicioScreen() {
   const fetchBooks = async () => {
     try {
       setLoading(true);
-      const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS));
-      const result = await response.json();
+      const url = buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS);
+      console.log('[DEBUG] Fetching books from URL:', url);
       
+      const response = await fetch(url);
+      console.log('[DEBUG] Response status:', response.status);
+      console.log('[DEBUG] Response headers:', response.headers);
+      
+      const textResponse = await response.text();
+      console.log('[DEBUG] Raw response:', textResponse.substring(0, 200));
+      
+      const result = JSON.parse(textResponse);
       console.log('[DEBUG] Response from API:', result);
       
       if (result.success && result.data) {

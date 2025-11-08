@@ -22,6 +22,25 @@ export class Usuario {
   @Column({ name: 'foto_perfil_url', nullable: true, type: 'varchar' })
   foto_perfil_url: string | null;
 
+  // ========================================
+  // Campos de Ubicación (Sistema de Proximidad)
+  // ========================================
+  
+  @Column({ type: 'float', nullable: true })
+  latitud: number | null;
+  
+  @Column({ type: 'float', nullable: true })
+  longitud: number | null;
+  
+  @Column({ name: 'radio_busqueda_km', type: 'integer', default: 10 })
+  radio_busqueda_km: number;
+  
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  ciudad: string | null;
+  
+  @Column({ name: 'ubicacion_actualizada_at', type: 'timestamptz', nullable: true })
+  ubicacion_actualizada_at: Date | null;
+
   // ✅ Relación con los libros que posee el usuario
   @OneToMany(() => Libro, (libro) => libro.propietario)
   libros: Libro[];
