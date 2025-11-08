@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, BadRequestException, Query } from '@nestjs/common';
 import { BookService } from './book.service';
 import type { CreateBookDto } from './dto/book.dto';
 import { Libro } from '../entities/book.entity';
@@ -8,13 +8,21 @@ export class BookController {
   constructor(private readonly bookService: BookService) {}
 
   @Get()
-  async getAllBooks(): Promise<{ success: boolean; data: Libro[]; message: string }> {
+  async getAllBooks(
+    @Query('userId') userId?: string,
+  ): Promise<{ success: boolean; data: any[]; message: string }> {
     try {
-      const books = await this.bookService.findAll();
+      const userIdNumber = userId ? parseInt(userId, 10) : undefined;
+      const books = await this.bookService.findAll(userIdNumber);
+      
+      const message = userIdNumber 
+        ? `Libros obtenidos con filtro de proximidad (${books.length} encontrados)`
+        : 'Libros obtenidos exitosamente';
+      
       return {
         success: true,
         data: books,
-        message: 'Libros obtenidos exitosamente',
+        message,
       };
     } catch (error) {
       throw new BadRequestException(`Error al obtener libros: ${error.message}`);

@@ -37,6 +37,7 @@ interface Book {
   generos?: Genero[];
   isFavorite?: boolean;
   id_propietario?: number;
+  distancia_km?: number;
 }
 
 export default function InicioScreen() {
@@ -78,7 +79,9 @@ export default function InicioScreen() {
   const fetchBooks = async () => {
     try {
       setLoading(true);
-      const url = buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS);
+      // Pasar userId si existe para filtrar por proximidad
+      const queryParam = user?.id_usuario ? `?userId=${user.id_usuario}` : '';
+      const url = buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS + queryParam);
       console.log('[DEBUG] Fetching books from URL:', url);
       
       const response = await fetch(url);
@@ -166,14 +169,15 @@ export default function InicioScreen() {
                     title={item.titulo} 
                     image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
                     genres={item.generos?.map(g => g.nombre) || []}
+                    distance={item.distancia_km}
                     onInfoPress={handleBookInfoPress}
                   />
                 );
               }}
               keyExtractor={(item) => item.id_libro.toString()}
               numColumns={2}
+              columnWrapperStyle={{justifyContent: 'flex-start'}}
               contentContainerStyle={styles.listContainer}
-              columnWrapperStyle={styles.row}
               refreshControl={
                 <RefreshControl
                   refreshing={refreshing}
@@ -203,10 +207,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   listContainer: {
-    paddingBottom: 20,
-  },
-  row: {
-    justifyContent: 'space-between',
+    paddingBottom: 100, // Espacio para la barra de navegación
   },
   loader: {
     flex: 1,

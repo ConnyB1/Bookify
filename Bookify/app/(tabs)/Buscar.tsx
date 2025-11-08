@@ -25,7 +25,7 @@ export default function BuscarScreen() {
     <SafeAreaView style={styles.safeArea}>
       
       <ThemedView style={styles.container}>
-        <Header />
+        {/* <Header /> descomentar si queremos bookify emasol */}
         <View style={styles.header}>
           
           <ThemedText style={styles.title}>Buscar</ThemedText>

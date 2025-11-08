@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     color: '#d500ff',
   },
   listContainer: {
-    paddingBottom: 20,
+    paddingBottom: 100, // Espacio extra para que no tape la barra de navegación
   },
   row: {
     justifyContent: 'space-between',

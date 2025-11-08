@@ -4,8 +4,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, ScrollView, ActivityIndicator, Alert, Image, Dimensions, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { API_CONFIG, buildApiUrl } from '../../config/api';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { API_CONFIG, buildApiUrl } from '../../../config/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ImagenDTO { url_imagen: string; }
@@ -140,8 +140,28 @@ export default function BookDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen options={{ title: libro.titulo }} />
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <Stack.Screen 
+        options={{ 
+          headerShown: true,
+          title: "Información del Libro",
+          headerStyle: {
+            backgroundColor: '#000',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => router.back()}
+              style={{ marginLeft: 10, marginRight: 25 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }} 
+      />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.card}>
           {/* Imagen del libro */}
@@ -213,6 +233,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     alignItems: 'center',
     paddingVertical: 30,
+    paddingBottom: 100, // Espacio para la barra de navegación
   },
   card: {
     backgroundColor: '#151718',
@@ -223,6 +244,7 @@ const styles = StyleSheet.create({
     shadowColor: '#d500ff',
     shadowOpacity: 0.2,
     shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
   bookImage: {

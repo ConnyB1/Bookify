@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
   },
   // bookList ahora solo gestiona el padding inferior
   bookList: {
-    paddingBottom: 40,
+    paddingBottom: 100, // Espacio extra para que no tape la barra de navegación
   },
   bookCard: {
     backgroundColor: '#1E1E1E',

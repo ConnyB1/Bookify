@@ -105,6 +105,14 @@ export default function TabLayout() {
         }}
       />
       
+      <Tabs.Screen
+        name="libro/[id]"
+        options={{
+          href: null, // Oculta de la barra de tabs
+          title: 'Detalle del Libro',
+        }}
+      />
+      
     </Tabs>
   );
 }
