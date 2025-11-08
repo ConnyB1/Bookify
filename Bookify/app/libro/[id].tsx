@@ -2,19 +2,18 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, ActivityIndicator, Alert, Image, Dimensions, TouchableOpacity } from 'react-native';
+import { StyleSheet, ScrollView, ActivityIndicator, Alert, Image, Dimensions, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Interfaces necesarias para el DTO (deberían estar en config/api.ts)
 interface ImagenDTO { url_imagen: string; }
 interface GeneroDTO { nombre: string; }
-interface PropietarioDTO { 
+interface PropietarioDTO {
   id_usuario: number;
-  nombre_usuario: string; 
+  nombre_usuario: string;
 }
-
 interface LibroDTO {
   id_libro: number;
   titulo: string;
@@ -32,12 +31,13 @@ export default function BookDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
+
   const [libro, setLibro] = useState<LibroDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
-  
+
   const bookId = typeof id === 'string' ? parseInt(id, 10) : undefined;
-  
+
   useEffect(() => {
     if (bookId) {
       fetchBookDetails(bookId);
@@ -51,28 +51,17 @@ export default function BookDetailScreen() {
     try {
       const url = buildApiUrl(`${API_CONFIG.ENDPOINTS.BOOKS}/${id}`);
       const response = await fetch(url);
-      
-      // 🛑 FIX CRÍTICO: Manejar errores del backend y respuesta sin envelope 🛑
+
       if (response.status === 400) {
-        // Manejar el BadRequestException (Libro no encontrado)
         const errorResult = await response.json();
-        throw new Error(errorResult.message || 'Libro no encontrado.'); 
+        throw new Error(errorResult.message || 'Libro no encontrado.');
       }
-      
-      if (!response.ok) {
-        throw new Error(`Error de red: ${response.statusText}`);
-      }
-      
-      // El resultado es directamente el objeto del libro
-      const result = await response.json(); 
-      
-      // Verificar si el resultado es un objeto Libro válido
-      if (result && result.id_libro) {
-        setLibro(result);
-      } else {
-        throw new Error('Respuesta del servidor inválida o libro no encontrado.');
-      }
-      
+
+      if (!response.ok) throw new Error(`Error de red: ${response.statusText}`);
+
+      const result = await response.json();
+      if (result && result.id_libro) setLibro(result);
+      else throw new Error('Respuesta inválida o libro no encontrado.');
     } catch (error) {
       console.error('Error fetching book details:', error);
       Alert.alert('Error', `No se pudo cargar el detalle del libro: ${error instanceof Error ? error.message : 'Error desconocido'}`);
@@ -86,10 +75,8 @@ export default function BookDetailScreen() {
       Alert.alert('Error', 'Debes iniciar sesión para solicitar un intercambio');
       return;
     }
-
     if (!libro) return;
 
-    // Verificar que no sea el propietario
     if (libro.propietario.id_usuario === user.id_usuario) {
       Alert.alert('Error', 'No puedes solicitar intercambio de tu propio libro');
       return;
@@ -107,9 +94,7 @@ export default function BookDetailScreen() {
             try {
               const response = await fetch(buildApiUrl('/api/exchange/request'), {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   id_libro_solicitado: libro.id_libro,
                   id_usuario_solicitante: user.id_usuario,
@@ -118,22 +103,16 @@ export default function BookDetailScreen() {
               });
 
               const result = await response.json();
-
               if (result.success) {
                 Alert.alert(
                   'Éxito',
-                  'Solicitud de intercambio enviada correctamente. El propietario recibirá una notificación.',
+                  'Solicitud de intercambio enviada correctamente.',
                   [{ text: 'OK', onPress: () => router.back() }]
                 );
-              } else {
-                throw new Error(result.message || 'Error al enviar solicitud');
-              }
+              } else throw new Error(result.message || 'Error al enviar solicitud');
             } catch (error) {
               console.error('Error sending exchange request:', error);
-              Alert.alert(
-                'Error',
-                `No se pudo enviar la solicitud: ${error instanceof Error ? error.message : 'Error desconocido'}`
-              );
+              Alert.alert('Error', `No se pudo enviar la solicitud: ${error instanceof Error ? error.message : 'Error desconocido'}`);
             } finally {
               setSendingRequest(false);
             }
@@ -163,82 +142,113 @@ export default function BookDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ title: libro.titulo }} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <ThemedView style={styles.container}>
-          
-          {/* Imágenes del Libro */}
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.card}>
+          {/* Imagen del libro */}
           {libro.imagenes && libro.imagenes.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesContainer}>
-              {libro.imagenes.map((img, index) => (
-                <Image 
-                  key={index}
-                  source={{ uri: img.url_imagen }} // Usar url_imagen como viene del backend
-                  style={styles.bookImage}
-                />
-              ))}
-            </ScrollView>
+            <Image source={{ uri: libro.imagenes[0].url_imagen }} style={styles.bookImage} />
           )}
 
+          {/* Información principal */}
           <ThemedText style={styles.title}>{libro.titulo}</ThemedText>
-          
-          <ThemedText style={styles.label}>Autor:</ThemedText>
-          <ThemedText style={styles.detailText}>{libro.autor}</ThemedText>
-          
-          <ThemedText style={styles.label}>Propietario:</ThemedText>
-          <ThemedText style={styles.detailText}>{libro.propietario?.nombre_usuario || 'Anónimo'}</ThemedText>
+          <ThemedText style={styles.owner}>{libro.propietario?.nombre_usuario || 'Propietario desconocido'}</ThemedText>
 
-          <ThemedText style={styles.label}>Estado:</ThemedText>
-          <ThemedText style={styles.detailText}>{libro.estado.replace('_', ' ').toUpperCase()}</ThemedText>
-
-          <ThemedText style={styles.label}>Descripción:</ThemedText>
-          <ThemedText style={styles.descriptionText}>
-            {libro.descripcion || 'Este libro no tiene una descripción detallada.'}
-          </ThemedText>
-          
-          <ThemedText style={styles.label}>Géneros:</ThemedText>
-          <ThemedText style={styles.detailText}>
-            {libro.generos?.map(g => g.nombre).join(', ') || 'Sin géneros asignados.'}
-          </ThemedText>
-
-          {/* Botón de Intercambio */}
+          {/* Botón sólido */}
           <TouchableOpacity
+            onPress={handleExchangeRequest}
+            disabled={sendingRequest || libro.propietario.id_usuario === user?.id_usuario}
             style={[
               styles.exchangeButton,
               (sendingRequest || libro.propietario.id_usuario === user?.id_usuario) && styles.exchangeButtonDisabled
             ]}
-            onPress={handleExchangeRequest}
-            disabled={sendingRequest || libro.propietario.id_usuario === user?.id_usuario}
           >
             {sendingRequest ? (
               <ActivityIndicator color="white" />
             ) : (
               <ThemedText style={styles.exchangeButtonText}>
-                {libro.propietario.id_usuario === user?.id_usuario
-                  ? 'Tu libro'
-                  : 'Solicitar Intercambio'}
+                {libro.propietario.id_usuario === user?.id_usuario ? 'Tu libro' : 'Intercambiar'}
               </ThemedText>
             )}
           </TouchableOpacity>
 
-        </ThemedView>
+          {/* Descripción */}
+          <View style={styles.descriptionContainer}>
+            <ThemedText style={styles.sectionTitle}>Descripción</ThemedText>
+            <ThemedText style={styles.descriptionText}>
+              {libro.descripcion || 'Este libro no tiene una descripción detallada.'}
+            </ThemedText>
+          </View>
+
+          {/* Datos del libro */}
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons name="book-open-page-variant" size={26} color="#d500ff" />
+              <ThemedText style={styles.infoLabel}>Género</ThemedText>
+              <ThemedText style={styles.infoText}>{libro.generos?.map(g => g.nombre).join(', ') || 'Ficción'}</ThemedText>
+            </View>
+
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons name="calendar" size={26} color="#d500ff" />
+              <ThemedText style={styles.infoLabel}>Publicado</ThemedText>
+              <ThemedText style={styles.infoText}>1883</ThemedText>
+            </View>
+
+            <View style={styles.infoItem}>
+              <MaterialCommunityIcons name="translate" size={26} color="#d500ff" />
+              <ThemedText style={styles.infoLabel}>Idioma</ThemedText>
+              <ThemedText style={styles.infoText}>Español</ThemedText>
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: '#151718' 
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  scrollContainer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  card: {
+    backgroundColor: '#151718',
+    borderRadius: 20,
+    padding: 20,
+    width: width * 0.9,
+    alignItems: 'center',
+    shadowColor: '#d500ff',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bookImage: {
+    width: width * 0.6,
+    height: width * 0.85,
+    borderRadius: 12,
+    marginBottom: 15,
+  },
+  title: {
+    color: 'white',
+    fontSize: 26,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  owner: {
+    color: 'lightgray',
+    fontSize: 16,
+    marginVertical: 6,
   },
   exchangeButton: {
-    marginTop: 30,
+    marginTop: 10,
     backgroundColor: '#d500ff',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
+    paddingVertical: 14,
+    borderRadius: 30,
     alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%',
     shadowColor: '#d500ff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -254,64 +264,51 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    marginRight: 10,
+  descriptionContainer: {
+    width: '100%',
+    marginTop: 25,
   },
-  container: { 
-    padding: 20 
-  },
-  centered: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center',
-    backgroundColor: '#151718'
-  },
-  errorText: { 
-    color: 'red', 
-    marginTop: 10 
-  },
-  scrollContent: { 
-    paddingBottom: 50 
-  },
-  imagesContainer: { 
-    marginBottom: 20, 
-    paddingRight: 10,
-  },
-  bookImage: { 
-    width: width * 0.8,
-    height: width * 1.1, 
-    marginRight: 10, 
-    borderRadius: 10,
-    resizeMode: 'cover',
-    backgroundColor: '#2a2a2a',
-  },
-  title: { 
-    fontSize: 28, 
-    fontWeight: 'bold', 
-    marginBottom: 15, 
-    color: 'white' 
-  },
-  label: { 
-    fontSize: 18, 
-    fontWeight: '600', 
-    marginTop: 15, 
+  sectionTitle: {
+    color: '#d500ff',
+    fontSize: 18,
+    fontWeight: '600',
     marginBottom: 5,
-    color: '#d500ff' 
   },
-  detailText: { 
-    fontSize: 16, 
-    color: 'lightgray' 
+  descriptionText: {
+    color: 'lightgray',
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'justify',
   },
-  descriptionText: { 
-    fontSize: 16, 
-    marginTop: 5, 
-    color: 'lightgray', 
-    lineHeight: 22 
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 30,
+    width: '100%',
+  },
+  infoItem: {
+    alignItems: 'center',
+    width: '30%',
+  },
+  infoLabel: {
+    color: '#d500ff',
+    fontSize: 14,
+    marginTop: 5,
+  },
+  infoText: {
+    color: 'lightgray',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#151718',
+  },
+  errorText: {
+    color: 'red',
+    marginTop: 10,
   },
 });

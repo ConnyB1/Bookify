@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -57,7 +57,7 @@ export class AuthService {
       const newUser = this.userRepository.create({
         nombre_usuario,
         email: email.toLowerCase(),
-        password_hash: passwordHash,
+        password_hash: passwordHash, // Asegúrate que la entidad user.entity.ts use 'password_hash'
         genero: genero || null,
       });
 
@@ -116,7 +116,7 @@ export class AuthService {
       }
 
       // Verificar contraseña
-      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+      const isPasswordValid = await bcrypt.compare(password, user.password_hash); // Asegúrate que la entidad user.entity.ts use 'password_hash'
 
       if (!isPasswordValid) {
         throw new UnauthorizedException('Credenciales inválidas');
@@ -179,11 +179,14 @@ export class AuthService {
       const user = await this.userRepository.findOne({ where: { id_usuario: userId } });
 
       if (!user) {
-        throw new BadRequestException('Usuario no encontrado');
+        throw new NotFoundException('Usuario no encontrado'); // Usar NotFoundException
       }
 
       user.foto_perfil_url = photoUrl;
       const updatedUser = await this.userRepository.save(user);
+
+      // Limpiar la respuesta
+      // delete updatedUser.password_hash; // <-- ESTA LÍNEA SE ELIMINA (es la que causa el error)
 
       return {
         success: true,
@@ -200,6 +203,9 @@ export class AuthService {
       };
     } catch (error) {
       console.error('Error actualizando foto:', error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new BadRequestException('Error al actualizar foto de perfil');
     }
   }

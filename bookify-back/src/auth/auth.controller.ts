@@ -1,4 +1,16 @@
-import { Controller, Post, Body, Get, Headers, UnauthorizedException, Param, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { 
+  Controller, 
+  Post, 
+  Body, 
+  Get, 
+  Headers, 
+  UnauthorizedException, 
+  Param, 
+  Put, 
+  UploadedFile, 
+  UseInterceptors,
+  Patch // <-- Importa Patch
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
@@ -45,7 +57,13 @@ export class AuthController {
     };
   }
 
-  @Put('profile-photo/:userId')
+  // ======================================================
+  // CORRECCIÓN:
+  // Cambiado de @Put('profile-photo/:userId') 
+  // a @Put('profile/picture/:userId') para coincidir con la API
+  // También cambiamos @Put por @Patch, ya que solo actualizamos un campo
+  // ======================================================
+  @Patch('profile/picture/:userId') // <-- RUTA CORREGIDA
   async updateProfilePhoto(
     @Param('userId') userId: string,
     @Body() body: { photoUrl: string },
