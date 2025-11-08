@@ -410,10 +410,30 @@ export default function PerfilScreen() {
           ))}
           <Text style={styles.ratingText}>4.5</Text>
         </View>
+      </View>
 
-        <View style={styles.infoSection}>
-          <ThemedText style={styles.subtitle}>Configuración de perfil próximamente</ThemedText>
-        </View>
+      {/* Sección de Configuración */}
+      <View style={styles.settingsSection}>
+        <TouchableOpacity
+          style={styles.settingButton}
+          onPress={() => router.push('/(tabs)/ubicacion')}
+        >
+          <View style={styles.settingIcon}>
+            <Ionicons name="location" size={24} color="#d500ff" />
+          </View>
+          <View style={styles.settingContent}>
+            <ThemedText style={styles.settingTitle}>Configurar Ubicación</ThemedText>
+            <Text style={styles.settingDescription}>
+              Establece tu ubicación y radio de búsqueda
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#888" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.infoSection}>
+        <ThemedText style={styles.subtitle}>Más configuraciones próximamente</ThemedText>
+      </View>
 
       {/* Título de la sección de libros */}
       <Text style={styles.sectionTitle}>Mis Libros</Text>
@@ -616,13 +636,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  userEmail: {
-    fontSize: 16,
-    opacity: 0.7,
-    marginTop: 4,
-  },
-  infoSection: {
-    flex: 1,
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 55,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -635,6 +656,49 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   ratingText: { color: '#fff', marginLeft: 5, fontSize: 14 },
+  settingsSection: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  settingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  settingIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2a1a3a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: '#888',
+  },
+  infoSection: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
   sectionTitle: {
     color: '#fff',
     fontSize: 18,
