@@ -362,28 +362,6 @@ export default function PerfilScreen() {
 
   const renderListHeader = () => (
     <>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <ThemedText style={styles.headerTitle}>Mi Perfil</ThemedText>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.bellButton}
-            onPress={openNotifications}>
-            <Ionicons name="notifications" size={28} color="#d500ff" />
-            {unreadCount > 0 && (
-              <View style={styles.badge}>
-                <ThemedText style={styles.badgeText}>{unreadCount}</ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.logoutIconButton}
-            onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={28} color="#d500ff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* PERFIL */}
       <View style={styles.profileCard}>
         <TouchableOpacity onPress={pickImage} disabled={isUploading}>
@@ -431,10 +409,6 @@ export default function PerfilScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.infoSection}>
-        <ThemedText style={styles.subtitle}>Más configuraciones próximamente</ThemedText>
-      </View>
-
       {/* Título de la sección de libros */}
       <Text style={styles.sectionTitle}>Mis Libros</Text>
     </>
@@ -465,6 +439,29 @@ export default function PerfilScreen() {
       style={styles.safeArea}
       edges={['top', 'left', 'right', 'bottom']}>
       <ThemedView style={styles.container}>
+        {/* HEADER ESTÁTICO */}
+        <View style={styles.header}>
+          <ThemedText style={styles.headerTitle}>Mi Perfil</ThemedText>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.bellButton}
+              onPress={openNotifications}>
+              <Ionicons name="notifications" size={28} color="#d500ff" />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <ThemedText style={styles.badgeText}>{unreadCount}</ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.logoutIconButton}
+              onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={28} color="#d500ff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* LISTA SCROLLABLE */}
         <FlatList
           data={libros}
           keyExtractor={(item) => item.id_libro.toString()}
@@ -476,8 +473,8 @@ export default function PerfilScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#d500ff']} // Color del spinner en Android
-              tintColor={'#d500ff'} // Color del spinner en iOS
+              colors={['#d500ff']}
+              tintColor={'#d500ff'} 
             />
           }
           renderItem={({ item }) => (
@@ -602,8 +599,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingTop: 20, // Añadimos padding superior que estaba en el container
+    paddingVertical: 16,
+    paddingBottom: 12,
+    backgroundColor: '#151718', // Asegurar que tenga fondo
   },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
@@ -627,7 +625,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1E1E',
     borderRadius: 20,
     padding: 20,
-    marginVertical: 20,
+    marginVertical: 12,
   },
   avatar: {
     width: 110,

@@ -79,4 +79,28 @@ export class AuthController {
       data: location,
     };
   }
+
+  @Patch('location/:userId')
+  async updateLocation(
+    @Param('userId') userId: string,
+    @Body() locationDto: UpdateLocationDto,
+  ): Promise<{ success: boolean; data: LocationResponseDto }> {
+    const location = await this.authService.updateUserLocation(+userId, locationDto);
+    return {
+      success: true,
+      data: location,
+    };
+  }
+
+  @Patch('search-radius/:userId')
+  async updateSearchRadius(
+    @Param('userId') userId: string,
+    @Body() body: { radio_busqueda_km: number },
+  ): Promise<{ success: boolean; message: string }> {
+    await this.authService.updateSearchRadius(+userId, body.radio_busqueda_km);
+    return {
+      success: true,
+      message: 'Radio de búsqueda actualizado correctamente',
+    };
+  }
 }

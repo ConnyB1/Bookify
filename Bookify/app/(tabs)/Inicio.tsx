@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LibroImagen {
   id_imagen: number;
@@ -35,6 +36,7 @@ interface Book {
   imagenes?: LibroImagen[];
   generos?: Genero[];
   isFavorite?: boolean;
+  id_propietario?: number;
 }
 
 export default function InicioScreen() {
@@ -43,22 +45,35 @@ export default function InicioScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter(); 
+  const { user } = useAuth(); 
   
   const filteredBooks = useMemo(() => {
     console.log('[DEBUG] Current filter:', currentFilter);
     console.log('[DEBUG] Total books:', books.length);
+    console.log('[DEBUG] Current user ID:', user?.id_usuario);
+    
+    // Primero filtrar los libros que NO son del usuario actual
+    const booksNotOwned = books.filter(book => {
+      const isNotOwner = book.id_propietario !== user?.id_usuario;
+      if (!isNotOwner) {
+        console.log('[DEBUG] Filtrando libro propio:', book.titulo, 'ID propietario:', book.id_propietario);
+      }
+      return isNotOwner;
+    });
+    
+    console.log('[DEBUG] Books after filtering owner:', booksNotOwned.length);
     
     switch (currentFilter) {
       case 'favorites':
-        const favorites = books.filter(book => book.isFavorite);
+        const favorites = booksNotOwned.filter(book => book.isFavorite);
         console.log('[DEBUG] Favorites count:', favorites.length);
         return favorites;
       case 'all':
       default:
-        console.log('[DEBUG] Showing all books');
-        return books;
+        console.log('[DEBUG] Showing all books (except user\'s own)');
+        return booksNotOwned;
     }
-  }, [currentFilter, books]);
+  }, [currentFilter, books, user?.id_usuario]);
 
   const fetchBooks = async () => {
     try {
