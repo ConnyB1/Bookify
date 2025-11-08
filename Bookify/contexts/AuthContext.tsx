@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (user: UserData, tokens: UserTokens) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (userData: UserData) => Promise<void>; // <-- 1. AÑADIDO DE VUELTA
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +56,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setTokens(null);
   };
 
+  // ======================================================
+  // 2. FUNCIÓN 'updateUser' AÑADIDA DE VUELTA
+  // ======================================================
+  const updateUser = async (userData: UserData) => {
+    try {
+      // Guardar los datos actualizados en el almacenamiento (usando tu util)
+      await saveUserData(userData);
+      // Actualizar el estado en la app
+      setUser(userData);
+    } catch (error) {
+      console.error('Error updating user data:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -64,6 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isAuthenticated: !!user && !!tokens,
         login,
         logout,
+        updateUser, // <-- 3. EXPUESTA EN EL CONTEXTO
       }}
     >
       {children}

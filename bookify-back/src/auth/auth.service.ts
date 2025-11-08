@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -180,7 +180,7 @@ export class AuthService {
       const user = await this.userRepository.findOne({ where: { id_usuario: userId } });
 
       if (!user) {
-        throw new BadRequestException('Usuario no encontrado');
+        throw new NotFoundException('Usuario no encontrado');
       }
 
       user.foto_perfil_url = photoUrl;
@@ -201,17 +201,12 @@ export class AuthService {
       };
     } catch (error) {
       console.error('Error actualizando foto:', error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new BadRequestException('Error al actualizar foto de perfil');
     }
   }
-
-  // ========================================
-  // Métodos de Ubicación
-  // ========================================
-
-  /**
-   * Obtener ubicación del usuario
-   */
   async getUserLocation(userId: number): Promise<LocationResponseDto> {
     const user = await this.userRepository.findOne({ where: { id_usuario: userId } });
 

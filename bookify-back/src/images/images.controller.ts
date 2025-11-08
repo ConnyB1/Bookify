@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ImagesService } from './images.service';
+import type { Express } from 'express'; // Importar Express como tipo
 
 @Controller('api/images')
 export class ImagesController {
@@ -34,6 +35,7 @@ export class ImagesController {
     file: Express.Multer.File,
   ) {
     try {
+      // Llama al servicio que sube a S3
       const imageUrl = await this.imagesService.uploadBookImage(file);
       
       return {
@@ -91,7 +93,7 @@ export class ImagesController {
 
   // Endpoint para subir imagen de perfil
   @Post('upload/profile')
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image')) // Espera un campo 'image'
   async uploadProfileImage(
     @UploadedFile(
       new ParseFilePipe({
@@ -104,6 +106,7 @@ export class ImagesController {
     file: Express.Multer.File,
   ) {
     try {
+      // Llama al servicio que sube a S3
       const imageUrl = await this.imagesService.uploadProfileImage(file);
       
       return {

@@ -1,4 +1,4 @@
-const DEFAULT_API = 'http://192.168.50.75:3000'; //'http://192.168.50.75:3000' 'http://10.41.72.78:3000';
+const DEFAULT_API = 'http://192.168.0.101:3000'; //'http://192.168.50.75:3000' 'http://192.168.0.101:3000'
 
 export const API_CONFIG = {
   // Usa la variable de entorno EXPO_PUBLIC_API_URL si está definida (útil para Expo en dispositivo),
@@ -22,6 +22,9 @@ export const API_CONFIG = {
     // Notifications endpoints
     NOTIFICATIONS: '/api/notifications',
     NOTIFICATIONS_UNREAD_COUNT: '/api/notifications/unread-count',
+
+    UPLOAD_PROFILE_IMAGE: '/api/images/upload/profile', // Para subir el archivo
+    UPDATE_PROFILE_PICTURE: '/api/auth/profile/picture', // Para guardar la URL
   }
 };
 
