@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -97,10 +98,14 @@ export default function ChatListScreen() {
     return (
       <TouchableOpacity
         style={styles.chatItem}
-        onPress={() => router.push(`/chat/${item.id_chat}?userName=${encodeURIComponent(item.otherUserName)}`)}
+        onPress={() => router.push(`/chat/${item.id_chat}?userName=${encodeURIComponent(item.otherUserName)}&otherUserId=${item.otherUserId}&otherUserPhoto=${encodeURIComponent(item.otherUserPhoto || '')}`)}
       >
         <View style={styles.avatar}>
-          <Ionicons name="person-circle" size={50} color="#8b00ff" />
+          {item.otherUserPhoto ? (
+            <Image source={{ uri: item.otherUserPhoto }} style={styles.avatarImage} />
+          ) : (
+            <Ionicons name="person" size={55} />
+          )}
         </View>
 
         <View style={styles.chatInfo}>
@@ -286,6 +291,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   avatarText: {
     fontSize: 20,

@@ -11,9 +11,10 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
@@ -36,8 +37,14 @@ interface Message {
 export default function ChatRoomScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { id, userName } = useLocalSearchParams<{ id: string; userName: string }>();
-  const chatId = id ? parseInt(id) : 0;
+  const { id, userName, otherUserId, otherUserPhoto } = useLocalSearchParams<{ 
+    id: string; 
+    userName: string;
+    otherUserId: string;
+    otherUserPhoto: string;
+  }>();
+  const chatId = id ? parseInt(id, 10) : 0;
+  const otherUserIdNum = otherUserId ? parseInt(otherUserId, 10) : 0;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
@@ -294,6 +301,11 @@ export default function ChatRoomScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <Stack.Screen
+          options={{
+            headerShown: false,
+          }}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#8b00ff" />
           <Text style={styles.loadingText}>Cargando chat...</Text>
@@ -306,7 +318,12 @@ export default function ChatRoomScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <Stack.Screen
+        options={{
+          headerShown: false,
+        }}
+      />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -317,12 +334,32 @@ export default function ChatRoomScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>{userName || 'Chat'}</Text>
-            <Text style={styles.headerSubtitle}>
-              {isSupabaseEnabled ? '🟢 En línea (Realtime)' : '🔵 En línea'}
-            </Text>
-          </View>
+          
+          {/* Foto de perfil + Info del usuario - todo clickeable para ir al perfil */}
+          <TouchableOpacity 
+            style={styles.headerUserSection}
+            onPress={() => {
+              if (otherUserIdNum) {
+                router.push(`/perfil/${otherUserIdNum}` as any);
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.headerAvatar}>
+              {otherUserPhoto ? (
+                <Image source={{ uri: otherUserPhoto }} style={styles.headerAvatarImage} />
+              ) : (
+                <Ionicons name="person-circle" size={40} color="#8b00ff" />
+              )}
+            </View>
+
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerTitle}>{userName || 'Chat'}</Text>
+              <Text style={styles.headerSubtitle}>
+                {isSupabaseEnabled ? '🟢 En línea (Realtime)' : '🔵 En línea'}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Messages List */}
@@ -410,6 +447,26 @@ const styles = StyleSheet.create({
   backButton: {
     marginRight: 12,
     padding: 4,
+  },
+  headerUserSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  headerAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   headerInfo: {
     flex: 1,

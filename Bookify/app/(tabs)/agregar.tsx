@@ -464,6 +464,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+    paddingBottom: 20,
   },
   genreButton: {
     backgroundColor: '#2a2a2a',

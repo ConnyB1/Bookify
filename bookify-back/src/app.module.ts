@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { ExchangeModule } from './exchange/exchange.module';
 import { NotificationModule } from './notifications/notification.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { NotificationModule } from './notifications/notification.module';
     ChatModule,
     ExchangeModule,
     NotificationModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
