@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
   Image,
-  Alert,
+  // Alert, // <-- Quitamos la nativa
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { getGenreColor, getGenreColorLight } from '../../utils/genreColors';
 import { useAuth } from '@/contexts/AuthContext';
+// 1. Importar el hook y el componente de alerta
+import CustomAlert from '@/components/CustomAlert';
+import { useAlertDialog } from '@/hooks/useAlertDialog';
 
 const GENRES = [
   'Ciencia Ficción',
@@ -30,8 +33,11 @@ const GENRES = [
 ];
 
 export default function AgregarScreen() {
-  const { user } = useAuth();
+  const { user, tokens } = useAuth(); // Añadir tokens
   
+  // 2. Instanciar el hook
+  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
+
   // Estados para el formulario de agregar libro
   const [bookData, setBookData] = useState({
     title: '',
@@ -39,9 +45,10 @@ export default function AgregarScreen() {
     description: '',
   });
   
-  const [bookImages, setBookImages] = useState<string[]>([]);
+  const [bookImages, setBookImages] = useState<string[]>([]); // Almacena URLs de S3
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(false); // Spinner para subida de imagen
+  const [saving, setSaving] = useState(false); // Spinner para guardado final
 
   // Función para seleccionar imagen
   const pickImage = async () => {
@@ -49,7 +56,10 @@ export default function AgregarScreen() {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (permissionResult.granted === false) {
-        Alert.alert('Permiso necesario', 'Se necesita acceso a la galería para seleccionar imágenes');
+        // 3. Reemplazar Alert.alert
+        showAlert('Permiso necesario', 'Se necesita acceso a la galería para seleccionar imágenes', [
+          { text: 'OK', onPress: hideAlert }
+        ]);
         return;
       }
 
@@ -64,7 +74,9 @@ export default function AgregarScreen() {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Error al seleccionar imagen');
+      showAlert('Error', 'Error al seleccionar imagen', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
     }
   };
 
@@ -74,7 +86,10 @@ export default function AgregarScreen() {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       
       if (permissionResult.granted === false) {
-        Alert.alert('Permiso necesario', 'Se necesita acceso a la cámara para tomar fotos');
+        // 3. Reemplazar Alert.alert
+        showAlert('Permiso necesario', 'Se necesita acceso a la cámara para tomar fotos', [
+          { text: 'OK', onPress: hideAlert }
+        ]);
         return;
       }
 
@@ -89,11 +104,13 @@ export default function AgregarScreen() {
       }
     } catch (error) {
       console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Error al tomar foto');
+      showAlert('Error', 'Error al tomar foto', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
     }
   };
 
-  // Función para subir imagen al backend
+  // Función para subir imagen al backend (S3)
   const uploadImage = async (imageUri: string) => {
     setUploading(true);
     
@@ -105,6 +122,7 @@ export default function AgregarScreen() {
         name: 'book-image.jpg',
       } as any);
 
+      // Usar el endpoint singular UPLOAD_IMAGE
       const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.UPLOAD_IMAGE), {
         method: 'POST',
         body: formData,
@@ -115,15 +133,21 @@ export default function AgregarScreen() {
 
       const result = await response.json();
       
-      if (result.success) {
+      if (result.success && result.data.imageUrl) {
         setBookImages(prev => [...prev, result.data.imageUrl]);
-        Alert.alert('Éxito', 'Imagen subida correctamente');
+        // 3. Reemplazar Alert.alert
+        showAlert('Éxito', 'Imagen subida correctamente', [
+          { text: 'OK', onPress: hideAlert }
+        ]);
       } else {
         throw new Error(result.message || 'Error al subir imagen');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
-      Alert.alert('Error', 'No se pudo subir la imagen. Verifica tu conexión.');
+      // 3. Reemplazar Alert.alert
+      showAlert('Error', 'No se pudo subir la imagen. Verifica tu conexión.', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
     } finally {
       setUploading(false);
     }
@@ -131,13 +155,14 @@ export default function AgregarScreen() {
 
   // Función para mostrar opciones de imagen
   const showImageOptions = () => {
-    Alert.alert(
+    // 3. Reemplazar Alert.alert con showAlert (la que pediste)
+    showAlert(
       'Agregar foto',
       'Selecciona una opción',
       [
-        { text: 'Cámara', onPress: takePhoto },
-        { text: 'Galería', onPress: pickImage },
-        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Cámara', onPress: () => { hideAlert(); takePhoto(); } },
+        { text: 'Galería', onPress: () => { hideAlert(); pickImage(); } },
+        { text: 'Cancelar', style: 'cancel', onPress: hideAlert },
       ]
     );
   };
@@ -154,21 +179,32 @@ export default function AgregarScreen() {
   // Función para guardar libro en la base de datos
   const saveBook = async () => {
     if (!bookData.title || !bookData.author) {
-      Alert.alert('Error', 'Por favor completa los campos obligatorios: Título y Autor');
+      // 3. Reemplazar Alert.alert
+      showAlert('Error', 'Por favor completa los campos obligatorios: Título y Autor', [
+        { text: 'Entendido', onPress: hideAlert }
+      ]);
       return;
     }
 
     if (selectedGenres.length === 0) {
-      Alert.alert('Error', 'Por favor selecciona al menos un género');
+      // 3. Reemplazar Alert.alert
+      showAlert('Error', 'Por favor selecciona al menos un género', [
+        { text: 'Entendido', onPress: hideAlert }
+      ]);
       return;
     }
 
     // Validar que el usuario esté autenticado
-    if (!user || !user.id_usuario) {
-      Alert.alert('Error', 'Debes iniciar sesión para agregar libros');
+    if (!user || !user.id_usuario || !tokens?.accessToken) {
+      // 3. Reemplazar Alert.alert
+      showAlert('Error', 'Debes iniciar sesión para agregar libros', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
       console.error('[DEBUG] Usuario no autenticado:', user);
       return;
     }
+    
+    setSaving(true); // Activar spinner de guardado
 
     try {
       // Preparar datos del libro para enviar al backend
@@ -176,12 +212,14 @@ export default function AgregarScreen() {
         titulo: bookData.title,
         autor: bookData.author,
         descripcion: bookData.description,
-        generos: selectedGenres,
-        imagenes: bookImages,
-        id_usuario: user.id_usuario, // Usuario autenticado (ya validado arriba)
+        // Tu backend espera un array de strings para géneros
+        generos: selectedGenres, 
+        // Tu backend espera un array de strings (URLs) para imágenes
+        urls_imagenes: bookImages, 
+        id_propietario: user.id_usuario, 
+        estado: 'available', // Añadir estado por defecto
       };
 
-      console.log('[DEBUG] Usuario actual:', user);
       console.log('[DEBUG] Libro a guardar:', bookToSave);
       
       // Llamada al endpoint del backend para guardar en DB
@@ -190,15 +228,20 @@ export default function AgregarScreen() {
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Authorization': `Bearer ${tokens.accessToken}`, // Añadir token de Auth
         },
         body: JSON.stringify(bookToSave),
       });
 
       const result = await response.json();
       
-      if (result.success) {
-        Alert.alert('Éxito', 'Libro agregado correctamente a la base de datos', [
-          { text: 'OK', onPress: resetForm }
+      if (response.ok) { // Chequear response.ok en lugar de result.success
+        // 3. Reemplazar Alert.alert
+        showAlert('Éxito', 'Libro agregado correctamente', [
+          { text: 'OK', onPress: () => {
+            hideAlert();
+            resetForm();
+          }}
         ]);
       } else {
         throw new Error(result.message || 'Error al guardar el libro');
@@ -206,7 +249,12 @@ export default function AgregarScreen() {
       
     } catch (error) {
       console.error('Error saving book:', error);
-      Alert.alert('Error', `No se pudo guardar el libro: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      // 3. Reemplazar Alert.alert
+      showAlert('Error', `No se pudo guardar el libro: ${error instanceof Error ? error.message : 'Error desconocido'}`, [
+        { text: 'OK', onPress: hideAlert }
+      ]);
+    } finally {
+      setSaving(false); // Desactivar spinner de guardado
     }
   };
 
@@ -230,8 +278,13 @@ export default function AgregarScreen() {
             <TouchableOpacity 
               onPress={saveBook}
               style={styles.saveButton}
+              disabled={saving} // Deshabilitar mientras se guarda
             >
-              <ThemedText style={styles.saveButtonText}>Guardar</ThemedText>
+              {saving ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <ThemedText style={styles.saveButtonText}>Guardar</ThemedText>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -242,10 +295,10 @@ export default function AgregarScreen() {
             <TouchableOpacity 
               style={styles.addPhotoButton}
               onPress={showImageOptions}
-              disabled={uploading}
+              disabled={uploading} // Deshabilitar mientras se sube
             >
               {uploading ? (
-                <ActivityIndicator color="white" size="large" />
+                <ActivityIndicator color="#d500ff" size="large" />
               ) : (
                 <>
                   <Ionicons name="camera" size={40} color="#666" />
@@ -340,11 +393,21 @@ export default function AgregarScreen() {
             </View>
           </View>
         </ScrollView>
+        
+        {/* 4. Añadir el componente CustomAlert al final */}
+        <CustomAlert
+          visible={alertVisible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onClose={hideAlert}
+        />
       </ThemedView>
     </SafeAreaView>
   );
 }
 
+// Estilos de tu código original
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -378,6 +441,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
+    minWidth: 80, // Ancho mínimo
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   saveButtonText: {
     color: 'white',
@@ -385,7 +451,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   scrollContent: {
-    flex: 1,
+    // No necesita flex: 1 si el contenedor principal ya lo tiene
   },
 
   // Photo Section
@@ -410,7 +476,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   imagesContainer: {
-    marginTop: 10,
+    // marginTop: 10, // Quitado, ya que addPhotoButton tiene marginBottom
   },
   bookImage: {
     width: 80,
@@ -463,15 +529,15 @@ const styles = StyleSheet.create({
   genresContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    paddingBottom: 20,
+    gap: 10, // 'gap' es más simple que marginBottom
+    // paddingBottom: 20, // Quitado, el form ya tiene paddingBottom
   },
   genreButton: {
     backgroundColor: '#2a2a2a',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    marginBottom: 8,
+    // marginBottom: 8, // Quitado, 'gap' lo maneja
     borderWidth: 1,
     borderColor: '#444',
   },

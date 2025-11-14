@@ -2,11 +2,23 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, ActivityIndicator, Alert, Image, Dimensions, TouchableOpacity, View } from 'react-native';
+import { 
+  StyleSheet, 
+  ScrollView, 
+  ActivityIndicator, 
+  // Alert, // <-- Quitado
+  Image, 
+  Dimensions, 
+  TouchableOpacity, 
+  View 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { API_CONFIG, buildApiUrl } from '../../../config/api';
 import { useAuth } from '@/contexts/AuthContext';
+// 1. Importar el hook y el componente de alerta
+import CustomAlert from '@/components/CustomAlert';
+import { useAlertDialog } from '@/hooks/useAlertDialog';
 
 interface ImagenDTO { url_imagen: string; }
 interface GeneroDTO { nombre: string; }
@@ -30,7 +42,11 @@ const { width } = Dimensions.get('window');
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  // 2. Obtener 'tokens' para la autenticación
+  const { user, tokens } = useAuth(); 
+
+  // 3. Instanciar el hook de alerta
+  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
 
   const [libro, setLibro] = useState<LibroDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,59 +76,97 @@ export default function BookDetailScreen() {
       if (!response.ok) throw new Error(`Error de red: ${response.statusText}`);
 
       const result = await response.json();
+      // CORRECCIÓN DE BUG: Tu API devuelve el objeto directo
       if (result && result.id_libro) setLibro(result);
       else throw new Error('Respuesta inválida o libro no encontrado.');
     } catch (error) {
       console.error('Error fetching book details:', error);
-      Alert.alert('Error', `No se pudo cargar el detalle del libro: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      // 4. Reemplazar Alert.alert con showAlert
+      showAlert(
+        'Error',
+        `No se pudo cargar el detalle del libro: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        [{ text: 'OK', onPress: () => {
+          hideAlert();
+          router.back();
+        }}]
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleExchangeRequest = async () => {
-    if (!user) {
-      Alert.alert('Error', 'Debes iniciar sesión para solicitar un intercambio');
+    // 4. Reemplazar Alert.alert y añadir chequeo de tokens
+    if (!user || !tokens || !tokens.accessToken) {
+      showAlert('Error', 'Debes iniciar sesión para solicitar un intercambio', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
       return;
     }
     if (!libro) return;
 
     if (libro.propietario.id_usuario === user.id_usuario) {
-      Alert.alert('Error', 'No puedes solicitar intercambio de tu propio libro');
+      // 4. Reemplazar Alert.alert
+      showAlert('Error', 'No puedes solicitar intercambio de tu propio libro', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
       return;
     }
 
-    Alert.alert(
-      'Solicitar Intercambio',
+    // 4. Reemplazar Alert.alert
+    showAlert(
+      'Confirmar Solicitud', // Título cambiado para mejor icono
       `¿Deseas solicitar intercambio del libro "${libro.titulo}"?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel', onPress: hideAlert },
         {
           text: 'Enviar Solicitud',
           onPress: async () => {
+            hideAlert(); // Ocultar esta alerta
             setSendingRequest(true);
             try {
-              const response = await fetch(buildApiUrl('/api/exchange/request'), {
+              // BUG FIX: Usar el endpoint correcto de la config
+              const url = buildApiUrl(API_CONFIG.ENDPOINTS.EXCHANGE_REQUEST);
+              
+              const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                  'Content-Type': 'application/json',
+                  // BUG FIX: El backend requiere autorización para este endpoint
+                  'Authorization': `Bearer ${tokens.accessToken}`
+                },
                 body: JSON.stringify({
                   id_libro_solicitado: libro.id_libro,
                   id_usuario_solicitante: user.id_usuario,
-                  id_usuario_receptor: libro.propietario.id_usuario,
+                  // BUG FIX: El backend espera 'id_usuario_solicitante_receptor'
+                  id_usuario_solicitante_receptor: libro.propietario.id_usuario,
                 }),
               });
 
               const result = await response.json();
-              if (result.success) {
-                Alert.alert(
+              
+              // BUG FIX: Usar response.ok es más seguro que result.success
+              if (response.ok) {
+                // 4. Reemplazar Alert.alert
+                showAlert(
                   'Éxito',
                   'Solicitud de intercambio enviada correctamente.',
-                  [{ text: 'OK', onPress: () => router.back() }]
+                  [{ text: 'Genial', onPress: () => {
+                    hideAlert();
+                    router.back();
+                  }}]
                 );
-              } else throw new Error(result.message || 'Error al enviar solicitud');
+              } else {
+                throw new Error(result.message || 'Error al enviar solicitud');
+              }
             } catch (error) {
               console.error('Error sending exchange request:', error);
-              Alert.alert('Error', `No se pudo enviar la solicitud: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+              // 4. Reemplazar Alert.alert
+              showAlert(
+                'Error',
+                `No se pudo enviar la solicitud: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+                [{ text: 'OK', onPress: hideAlert }]
+              );
             } finally {
               setSendingRequest(false);
             }
@@ -138,6 +192,9 @@ export default function BookDetailScreen() {
       </ThemedView>
     );
   }
+  
+  // BUG FIX: Chequear si 'user' existe antes de comparar IDs
+  const isOwner = user ? libro.propietario.id_usuario === user.id_usuario : false;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
@@ -176,17 +233,17 @@ export default function BookDetailScreen() {
           {/* Botón sólido */}
           <TouchableOpacity
             onPress={handleExchangeRequest}
-            disabled={sendingRequest || libro.propietario.id_usuario === user?.id_usuario}
+            disabled={sendingRequest || isOwner} // Usar 'isOwner'
             style={[
               styles.exchangeButton,
-              (sendingRequest || libro.propietario.id_usuario === user?.id_usuario) && styles.exchangeButtonDisabled
+              (sendingRequest || isOwner) && styles.exchangeButtonDisabled // Usar 'isOwner'
             ]}
           >
             {sendingRequest ? (
               <ActivityIndicator color="white" />
             ) : (
               <ThemedText style={styles.exchangeButtonText}>
-                {libro.propietario.id_usuario === user?.id_usuario ? 'Tu libro' : 'Intercambiar'}
+                {isOwner ? 'Tu libro' : 'Intercambiar'} 
               </ThemedText>
             )}
           </TouchableOpacity>
@@ -221,6 +278,15 @@ export default function BookDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* 5. Añadir el componente CustomAlert al final */}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }
