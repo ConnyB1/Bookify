@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Libro } from '../entities/book.entity';
 import { Genero } from '../entities/genero.entity';
 import { LibroImagen } from '../entities/libro-imagen.entity';
@@ -21,46 +21,22 @@ export class BookService {
     private usuarioRepository: Repository<Usuario>,
   ) {}
 
-  /**
-   * Calcula la distancia entre dos puntos geográficos usando la fórmula de Haversine
-   * @param lat1 Latitud del punto 1
-   * @param lon1 Longitud del punto 1
-   * @param lat2 Latitud del punto 2
-   * @param lon2 Longitud del punto 2
-   * @returns Distancia en kilómetros
-   */
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Radio de la Tierra en kilómetros
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    
-    const a = 
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
-    
-    return Math.round(distance * 10) / 10; // Redondear a 1 decimal
-  }
-
   async findAll(userId?: number): Promise<any[]> {
-    const libros = await this.bookRepository.find({
-      relations: ['propietario', 'generos', 'imagenes'],
-    });
-
-    console.log(`[DEBUG] Libros encontrados en la DB: ${libros.length}`);
-    
     // 🎯 FEATURE FLAG: Desactiva el filtro de proximidad cambiando FEATURES.PROXIMITY_FILTER_ENABLED a false
     if (!FEATURES.PROXIMITY_FILTER_ENABLED) {
       console.log('[DEBUG] ⚠️ Filtro de proximidad DESACTIVADO globalmente - retornando todos los libros');
+      const libros = await this.bookRepository.find({
+        relations: ['propietario', 'generos', 'imagenes'],
+      });
       return libros;
     }
 
     // Si no hay userId, retornar todos los libros (comportamiento original)
     if (!userId) {
       console.log('[DEBUG] Sin userId - retornando todos los libros');
+      const libros = await this.bookRepository.find({
+        relations: ['propietario', 'generos', 'imagenes'],
+      });
       return libros;
     }
 
@@ -69,50 +45,106 @@ export class BookService {
       where: { id_usuario: userId },
     });
 
-    // Si el usuario no existe o no tiene ubicación configurada, retornar todos
+    // Si el usuario no tiene ubicación configurada, retornar todos
     if (!usuario || !usuario.latitud || !usuario.longitud) {
       console.log('[DEBUG] Usuario sin ubicación configurada - retornando todos los libros');
+      const libros = await this.bookRepository.find({
+        relations: ['propietario', 'generos', 'imagenes'],
+      });
       return libros;
     }
 
     console.log(`[DEBUG] Usuario ${userId} busca desde: ${usuario.ciudad} (${usuario.latitud}, ${usuario.longitud})`);
     console.log(`[DEBUG] Radio de búsqueda: ${usuario.radio_busqueda_km} km`);
 
-    // Filtrar libros por proximidad
-    const librosConDistancia = libros
-      .map(libro => {
-        // Si el propietario no tiene ubicación, no incluir el libro
-        if (!libro.propietario.latitud || !libro.propietario.longitud) {
-          return null;
-        }
-
-        // Calcular distancia (usamos ! porque ya verificamos que no son null arriba)
-        const distancia = this.calculateDistance(
-          usuario.latitud!,
-          usuario.longitud!,
-          libro.propietario.latitud,
-          libro.propietario.longitud,
-        );
-
-        return {
-          ...libro,
-          distancia_km: distancia,
-        };
-      })
-      .filter(libro => libro !== null) // Eliminar libros sin ubicación
-      .filter(libro => libro.distancia_km <= usuario.radio_busqueda_km) // Filtrar por radio
-      .sort((a, b) => a.distancia_km - b.distancia_km); // Ordenar por distancia (más cercanos primero)
-
-    console.log(`[DEBUG] Libros dentro del radio (${usuario.radio_busqueda_km} km): ${librosConDistancia.length}`);
+    // 🚀 Consulta OPTIMIZADA con ST_DWithin (usa índices espaciales)
+    // ST_DWithin es mucho más rápido que ST_Distance porque:
+    // 1. Aprovecha índices GiST/SP-GiST de PostGIS
+    // 2. Solo evalúa puntos dentro del radio (no calcula todas las distancias)
+    // 3. Retorna boolean, no float (más eficiente)
     
+    // Primero, obtener los IDs de libros dentro del radio con sus distancias
+    const librosConDistanciaRaw = await this.bookRepository
+      .createQueryBuilder('libro')
+      .innerJoin('libro.propietario', 'propietario')
+      .select('libro.id_libro', 'id_libro')
+      .addSelect(
+        `ROUND(
+          CAST(
+            ST_Distance(
+              ST_MakePoint(propietario.longitud, propietario.latitud)::geography,
+              ST_MakePoint(:userLng, :userLat)::geography
+            ) / 1000 AS NUMERIC
+          ), 1
+        )`,
+        'distancia_km',
+      )
+      .where('propietario.latitud IS NOT NULL')
+      .andWhere('propietario.longitud IS NOT NULL')
+      .andWhere(
+        `ST_DWithin(
+          ST_MakePoint(propietario.longitud, propietario.latitud)::geography,
+          ST_MakePoint(:userLng, :userLat)::geography,
+          :radiusMeters
+        )`,
+      )
+      .setParameters({
+        userLat: usuario.latitud,
+        userLng: usuario.longitud,
+        radiusMeters: usuario.radio_busqueda_km * 1000,
+      })
+      .orderBy('distancia_km', 'ASC')
+      .getRawMany();
+
+    console.log(`[DEBUG] Libros encontrados dentro del radio (${usuario.radio_busqueda_km} km): ${librosConDistanciaRaw.length}`);
+
+    if (librosConDistanciaRaw.length === 0) {
+      return [];
+    }
+
+    // Crear mapa de distancias
+    const distanciaMap = new Map<number, number>();
+    const libroIds = librosConDistanciaRaw.map(row => {
+      distanciaMap.set(parseInt(row.id_libro), parseFloat(row.distancia_km));
+      return parseInt(row.id_libro);
+    });
+
+    // Obtener los libros completos con sus relaciones
+    const libros = await this.bookRepository.find({
+      where: { id_libro: In(libroIds) },
+      relations: ['propietario', 'generos', 'imagenes'],
+    });
+
+    // Mapear con distancias y ordenar
+    const librosConDistancia = libros
+      .map((libro) => ({
+        ...libro,
+        distancia_km: distanciaMap.get(libro.id_libro) || 0,
+      }))
+      .sort((a, b) => a.distancia_km - b.distancia_km);
+
     if (librosConDistancia.length > 0) {
       console.log('[DEBUG] Primer libro con distancia:', {
         titulo: librosConDistancia[0].titulo,
         distancia: librosConDistancia[0].distancia_km,
         propietario: librosConDistancia[0].propietario.nombre_usuario,
+        coords_propietario: {
+          lat: librosConDistancia[0].propietario.latitud,
+          lng: librosConDistancia[0].propietario.longitud,
+        },
+        coords_usuario: {
+          lat: usuario.latitud,
+          lng: usuario.longitud,
+        },
+      });
+      
+      // 🔍 DEBUG: Mostrar todos los libros con sus distancias
+      console.log('[DEBUG] Todos los libros encontrados:');
+      librosConDistancia.forEach((libro, i) => {
+        console.log(`  ${i + 1}. "${libro.titulo}" - ${libro.distancia_km} km (${libro.propietario.latitud}, ${libro.propietario.longitud})`);
       });
     }
-    
+
     return librosConDistancia;
   }
 

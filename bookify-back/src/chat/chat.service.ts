@@ -22,28 +22,27 @@ export class ChatService {
    * Obtener todos los chats de un usuario con preview
    */
   async getUserChats(userId: number): Promise<ChatPreviewDto[]> {
-    console.log(`📋 [Chat Service] Obteniendo chats para usuario ${userId}`);
+    console.log(`Obteniendo chats para usuario ${userId}`);
     
     // Obtener IDs de chats donde participa el usuario
     const userChats = await this.chatUsuarioRepository.find({
       where: { id_usuario: userId },
     });
 
-    console.log(`📋 [Chat Service] Usuario participa en ${userChats.length} chats`);
+    console.log(`Usuario participa en ${userChats.length} chats`);
 
     const chatIds = userChats.map(uc => uc.id_chat);
 
     if (chatIds.length === 0) {
-      console.log(`ℹ️ [Chat Service] No hay chats para mostrar`);
+      console.log(`No hay chats para mostrar`);
       return [];
     }
 
-    console.log(`📋 [Chat Service] IDs de chats: ${chatIds.join(', ')}`);
+    console.log(`IDs de chats: ${chatIds.join(', ')}`);
 
     const chatPreviews: ChatPreviewDto[] = [];
 
     for (const chatId of chatIds) {
-      // Obtener otros usuarios del chat
       const otherUsers = await this.chatUsuarioRepository
         .createQueryBuilder('cu')
         .leftJoinAndSelect('cu.usuario', 'u')
@@ -52,12 +51,12 @@ export class ChatService {
         .getMany();
 
       if (otherUsers.length === 0) {
-        console.log(`⚠️ [Chat Service] Chat ${chatId} no tiene otro usuario`);
+        console.log(`Chat ${chatId} no tiene otro usuario`);
         continue;
       }
 
       const otherUser = otherUsers[0].usuario;
-      console.log(`👤 [Chat Service] Chat ${chatId} con usuario: ${otherUser.nombre_usuario}`);
+      console.log(`Chat ${chatId} con usuario: ${otherUser.nombre_usuario}`);
 
       // Obtener último mensaje
       const lastMessage = await this.mensajeRepository.findOne({
@@ -81,14 +80,10 @@ export class ChatService {
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
 
-    console.log(`✅ [Chat Service] Retornando ${chatPreviews.length} chats`);
-
     return chatPreviews;
   }
 
-  /**
-   * Obtener mensajes de un chat específico
-   */
+
   async getChatMessages(chatId: number, userId: number, limit = 200): Promise<MessageDto[]> {
     // Verificar que el usuario pertenece al chat
     const isMember = await this.chatUsuarioRepository.findOne({
@@ -168,7 +163,7 @@ export class ChatService {
    * Crear un nuevo chat entre dos usuarios
    */
   async createChat(dto: CreateChatDto): Promise<{ id_chat: number; message: string }> {
-    console.log(`🔵 Intentando crear chat entre usuarios ${dto.id_usuario1} y ${dto.id_usuario2}`);
+    console.log(`Intentando crear chat entre usuarios ${dto.id_usuario1} y ${dto.id_usuario2}`);
     
     // Verificar que los usuarios existen
     const user1 = await this.usuarioRepository.findOne({ 
@@ -179,19 +174,19 @@ export class ChatService {
     });
 
     if (!user1 || !user2) {
-      console.error(`❌ Usuario no encontrado: user1=${!!user1}, user2=${!!user2}`);
+      console.error(`Usuario no encontrado: user1=${!!user1}, user2=${!!user2}`);
       throw new NotFoundException('Uno o ambos usuarios no existen');
     }
 
     if (dto.id_usuario1 === dto.id_usuario2) {
-      console.error('❌ Intento de crear chat consigo mismo');
+      console.error('Intento de crear chat consigo mismo');
       throw new BadRequestException('No puedes crear un chat contigo mismo');
     }
 
     // Verificar si ya existe un chat entre estos usuarios
     const existingChat = await this.findExistingChat(dto.id_usuario1, dto.id_usuario2);
     if (existingChat) {
-      console.log(`♻️  Chat ya existe: ${existingChat}`);
+      console.log(`Chat ya existe: ${existingChat}`);
       return {
         id_chat: existingChat,
         message: 'Ya existe un chat entre estos usuarios',
@@ -204,14 +199,14 @@ export class ChatService {
     });
 
     const savedChat = await this.chatRepository.save(chat);
-    console.log(`✅ Chat creado con ID: ${savedChat.id_chat}`);
+    console.log(`Chat creado con ID: ${savedChat.id_chat}`);
 
     // Asociar usuarios al chat
     await this.chatUsuarioRepository.save([
       { id_chat: savedChat.id_chat, id_usuario: dto.id_usuario1 },
       { id_chat: savedChat.id_chat, id_usuario: dto.id_usuario2 },
     ]);
-    console.log(`✅ Usuarios asociados al chat ${savedChat.id_chat}`);
+    console.log(`Usuarios asociados al chat ${savedChat.id_chat}`);
 
     return {
       id_chat: savedChat.id_chat,
@@ -219,9 +214,6 @@ export class ChatService {
     };
   }
 
-  /**
-   * Buscar si existe un chat entre dos usuarios
-   */
   private async findExistingChat(userId1: number, userId2: number): Promise<number | null> {
     const chatsUser1 = await this.chatUsuarioRepository.find({
       where: { id_usuario: userId1 },

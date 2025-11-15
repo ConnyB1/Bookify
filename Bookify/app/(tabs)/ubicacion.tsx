@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { buildApiUrl } from '@/config/api';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
+import { router, Stack } from 'expo-router';
 
 interface UserLocation {
   latitud: number | null;
@@ -102,7 +103,7 @@ export default function LocationSettingsScreen() {
       );
 
       Alert.alert(
-        '✅ Ubicación Actualizada',
+        'Ubicación Actualizada',
         `Tu ubicación se ha configurado en ${ciudad}. Los libros ahora se mostrarán según tu radio de búsqueda.`
       );
     } catch (error) {
@@ -160,7 +161,7 @@ export default function LocationSettingsScreen() {
       const result = await response.json();
 
       if (result.success) {
-        Alert.alert('✅ Radio Actualizado', `Ahora verás libros dentro de ${radius} km`);
+        Alert.alert('Radio Actualizado', `Ahora verás libros dentro de ${radius} km`);
         loadUserLocation();
       }
     } catch (error) {
@@ -194,6 +195,27 @@ export default function LocationSettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+      <Stack.Screen 
+        options={{ 
+          headerShown: true,
+          title: "Configuración de Ubicación",
+          headerStyle: {
+            backgroundColor: '#000',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => router.push('/perfil')}
+              style={{ marginLeft: 10, marginRight: 25 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }} 
+      />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <ThemedView style={styles.container}>
           {/* Header */}
@@ -207,7 +229,7 @@ export default function LocationSettingsScreen() {
 
           {/* Estado Actual */}
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>📍 Ubicación Actual</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Ubicación Actual</ThemedText>
             <View style={styles.card}>
               {location?.latitud && location?.longitud ? (
                 <>
@@ -258,7 +280,7 @@ export default function LocationSettingsScreen() {
 
           {/* Selector de Radio */}
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>🔍 Radio de Búsqueda</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Radio de Búsqueda</ThemedText>
             <ThemedText style={styles.sectionDescription}>
               Elige qué tan lejos quieres buscar libros
             </ThemedText>
@@ -287,7 +309,7 @@ export default function LocationSettingsScreen() {
 
           {/* Información de Privacidad */}
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>🔒 Privacidad</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Privacidad</ThemedText>
             <View style={styles.privacyCard}>
               <View style={styles.privacyItem}>
                 <Ionicons name="shield-checkmark" size={20} color="#4caf50" />
@@ -310,6 +332,8 @@ export default function LocationSettingsScreen() {
             </View>
           </View>
         </ThemedView>
+        <View style={styles.parellenar}>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -325,7 +349,12 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
+    paddingTop: 80,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  parellenar: {
+    paddingBottom: 50,
   },
   loadingContainer: {
     flex: 1,

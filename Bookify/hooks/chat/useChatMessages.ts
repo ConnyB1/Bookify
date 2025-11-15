@@ -65,7 +65,7 @@ export function useChatMessages(
       const result = await response.json();
 
       if (result.success && result.data && result.data.length > 0) {
-        console.log(`📬 Polling: ${result.data.length} mensaje(s) nuevo(s)`);
+        console.log(`Polling: ${result.data.length} mensaje(s) nuevo(s)`);
         setMessages((prev) => [...prev, ...result.data]);
       }
     } catch (error) {

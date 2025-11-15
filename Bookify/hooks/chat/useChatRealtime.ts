@@ -35,7 +35,7 @@ export function useChatRealtime({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const startPolling = (loadNewMessages: () => Promise<void>) => {
-    console.log('🔄 Iniciando polling cada 2 segundos...');
+    console.log('Iniciando polling cada 2 segundos...');
     pollingIntervalRef.current = setInterval(() => {
       if (chatId && userId) {
         loadNewMessages();

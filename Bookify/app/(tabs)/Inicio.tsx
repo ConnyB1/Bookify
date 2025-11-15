@@ -119,6 +119,7 @@ export default function InicioScreen() {
     await fetchBooks();
     setRefreshing(false);
   };
+  
 
   const handleFilterChange = (filterId: string) => {
     setCurrentFilter(filterId);
@@ -132,6 +133,7 @@ export default function InicioScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.container}>
+          
         {/* Encabezado */}
         <Header />
 
@@ -144,8 +146,11 @@ export default function InicioScreen() {
         {/* Lista de Libros */}
         {loading ? (
           <ActivityIndicator size="large" color="#d500ff" style={styles.loader} />
+          
         ) : filteredBooks.length === 0 ? (
+
           <View style={styles.emptyState}>
+            
             <Ionicons name="book-outline" size={80} color="#666" />
             <ThemedText style={styles.emptyTitle}>
               {currentFilter === 'favorites' ? 'Sin favoritos' : 'No hay libros disponibles'}
