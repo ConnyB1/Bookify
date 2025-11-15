@@ -146,7 +146,7 @@ export default function ChatListScreen() {
           <Text style={styles.headerTitle}>Chats</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8b00ff" />
+          <ActivityIndicator size="large" color="#d500ff" />
         </View>
       </SafeAreaView>
     );
@@ -203,8 +203,8 @@ export default function ChatListScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#8b00ff']}
-              tintColor="#8b00ff"
+              colors={['#d500ff']}
+              tintColor="#d500ff"
             />
           }
         />
@@ -216,21 +216,23 @@ export default function ChatListScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#151718', // Mismo color que otras pantallas
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 20,
+    paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
+    borderBottomColor: '#333',
+    backgroundColor: '#151718',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#888',
     marginTop: 4,
   },
@@ -238,37 +240,42 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#151718',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+    backgroundColor: '#151718',
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#fff',
-    marginBottom: 12,
+    marginTop: 16,
+    marginBottom: 8,
   },
   emptyText: {
     fontSize: 15,
-    color: '#888',
+    color: '#999',
     textAlign: 'center',
     lineHeight: 22,
   },
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#2a2a2a',
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 20,
-    marginTop: 20,
+    borderRadius: 25,
+    marginTop: 24,
     gap: 8,
+    borderWidth: 1,
+    borderColor: '#444',
   },
   refreshButtonText: {
-    color: '#8b00ff',
+    color: '#d500ff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -280,23 +287,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    backgroundColor: '#151718',
+    marginHorizontal: 16,
+    marginVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#8b00ff',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#d500ff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#333',
   },
   avatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
   avatarText: {
     fontSize: 20,
@@ -310,19 +323,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   chatName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: '#fff',
   },
   timestamp: {
     fontSize: 12,
     color: '#888',
+    fontWeight: '500',
   },
   lastMessage: {
     fontSize: 14,
-    color: '#888',
+    color: '#999',
+    lineHeight: 18,
   },
 });

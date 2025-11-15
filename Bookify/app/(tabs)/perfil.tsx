@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker'; // Importar ImagePicker
 // Importar el hook y el componente de alerta
 import CustomAlert from '@/components/CustomAlert';
 import { useAlertDialog } from '@/hooks/useAlertDialog';
+import ImagePickerSheet from '@/components/ImagePickerSheet';
 
 // --- Definiciones de DTO ---
 interface ImagenDTO {
@@ -50,6 +51,7 @@ export default function PerfilScreen() {
   
   // Instanciar el hook
   const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
+  const [imagePickerVisible, setImagePickerVisible] = useState(false);
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [libros, setLibros] = useState<LibroDTO[]>([]);
@@ -193,10 +195,15 @@ export default function PerfilScreen() {
   // ======================================================
   // FUNCIONES PARA SUBIR FOTO DE PERFIL
   // ======================================================
-  const pickImage = async () => {
+  const pickImage = () => {
+    // Mostrar el ImagePickerSheet personalizado
+    setImagePickerVisible(true);
+  };
+
+  const handleGallerySelect = async () => {
+    console.log('[Profile] Gallery selected');
     if (Platform.OS !== 'web') {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         showAlert(
           'Permiso requerido',
@@ -206,30 +213,27 @@ export default function PerfilScreen() {
         return;
       }
     }
+    selectImageFrom('gallery');
+  };
 
-    // 4. Reemplazar Alert.alert con showAlert
-    showAlert(
-      'Subir foto de perfil',
-      '¿De dónde quieres seleccionar la imagen?',
-      [
-        { text: 'Galería', onPress: () => {
-            hideAlert();
-            selectImageFrom('gallery');
-          } 
-        },
-        { text: 'Cámara', onPress: () => {
-            hideAlert();
-            selectImageFrom('camera');
-          } 
-        },
-        { text: 'Cancelar', style: 'cancel', onPress: hideAlert },
-      ],
-    );
+  const handleCameraSelect = async () => {
+    console.log('[Profile] Camera selected');
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert(
+        'Permiso requerido',
+        'Necesitamos permiso para acceder a tu cámara.',
+        [{ text: 'OK', onPress: hideAlert }]
+      );
+      return;
+    }
+    selectImageFrom('camera');
   };
 
   const selectImageFrom = async (source: 'gallery' | 'camera') => {
     let result;
     try {
+      console.log(`[Profile] Launching ${source}...`);
       if (source === 'gallery') {
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -238,21 +242,13 @@ export default function PerfilScreen() {
           quality: 0.8,
         });
       } else {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          showAlert(
-            'Permiso requerido',
-            'Necesitamos permiso para acceder a tu cámara.',
-            [{ text: 'OK', onPress: hideAlert }]
-          );
-          return;
-        }
         result = await ImagePicker.launchCameraAsync({
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.8,
         });
       }
+      console.log(`[Profile] Result:`, result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedUri = result.assets[0].uri;
@@ -594,6 +590,14 @@ export default function PerfilScreen() {
           onClose={hideAlert}
         />
 
+        {/* ImagePickerSheet para seleccionar foto de perfil */}
+        <ImagePickerSheet
+          visible={imagePickerVisible}
+          onClose={() => setImagePickerVisible(false)}
+          onCamera={handleCameraSelect}
+          onGallery={handleGallerySelect}
+        />
+
       </ThemedView>
     </SafeAreaView>
   );
@@ -685,10 +689,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     margin: 8,
     padding: 10,
-    // --- IMPORTANTE: Ajuste de ancho para 2 columnas ---
     flex: 1,
-    maxWidth: '48%', // Permitir un pequeño espacio
-    // --- Fin de Ajuste ---
+    maxWidth: '48%',
   },
   bookImage: { width: 100, height: 140, borderRadius: 8, marginBottom: 8 },
   bookTitle: {

@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
   Image,
-  // Alert, // <-- Quitamos la nativa
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 // 1. Importar el hook y el componente de alerta
 import CustomAlert from '@/components/CustomAlert';
 import { useAlertDialog } from '@/hooks/useAlertDialog';
+import ImagePickerSheet from '@/components/ImagePickerSheet';
 
 const GENRES = [
   'Ciencia Ficción',
@@ -37,6 +37,7 @@ export default function AgregarScreen() {
   
   // 2. Instanciar el hook
   const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
+  const [imagePickerVisible, setImagePickerVisible] = useState(false);
 
   // Estados para el formulario de agregar libro
   const [bookData, setBookData] = useState({
@@ -46,16 +47,56 @@ export default function AgregarScreen() {
   });
   
   const [bookImages, setBookImages] = useState<string[]>([]); // Almacena URLs de S3
+  const [coverImageIndex, setCoverImageIndex] = useState<number>(0); // Índice de la foto principal
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false); // Spinner para subida de imagen
   const [saving, setSaving] = useState(false); // Spinner para guardado final
 
+  const MAX_IMAGES = 5; // Límite máximo de imágenes
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB en bytes
+
+  // Función para validar tamaño de archivo
+  const validateImageSize = async (uri: string): Promise<boolean> => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      if (blob.size > MAX_FILE_SIZE) {
+        showAlert(
+          'Imagen muy grande',
+          `La imagen debe ser menor a 5MB. Tamaño actual: ${(blob.size / (1024 * 1024)).toFixed(2)}MB`,
+          [{ text: 'OK', onPress: hideAlert }]
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error validating image size:', error);
+      return true; // Continuar si no se puede validar
+    }
+  };
+
   // Función para seleccionar imagen
   const pickImage = async () => {
+    console.log('[pickImage] Function called');
+    // Verificar límite de imágenes
+    if (bookImages.length >= MAX_IMAGES) {
+      console.log('[pickImage] Max images reached');
+      showAlert(
+        'Límite alcanzado',
+        `Solo puedes agregar hasta ${MAX_IMAGES} fotos por libro`,
+        [{ text: 'OK', onPress: hideAlert }]
+      );
+      return;
+    }
+
     try {
+      console.log('[pickImage] Requesting permissions...');
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('[pickImage] Permission result:', permissionResult);
       
       if (permissionResult.granted === false) {
+        console.log('[pickImage] Permission denied');
         // 3. Reemplazar Alert.alert
         showAlert('Permiso necesario', 'Se necesita acceso a la galería para seleccionar imágenes', [
           { text: 'OK', onPress: hideAlert }
@@ -63,14 +104,19 @@ export default function AgregarScreen() {
         return;
       }
 
+      console.log('[pickImage] Launching image library...');
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsEditing: true,
         aspect: [3, 4],
         quality: 0.8,
       });
+      console.log('[pickImage] Result:', result);
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        uploadImage(result.assets[0].uri);
+        const isValid = await validateImageSize(result.assets[0].uri);
+        if (isValid) {
+          uploadImage(result.assets[0].uri);
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -82,10 +128,25 @@ export default function AgregarScreen() {
 
   // Función para tomar foto
   const takePhoto = async () => {
+    console.log('[takePhoto] Function called');
+    // Verificar límite de imágenes
+    if (bookImages.length >= MAX_IMAGES) {
+      console.log('[takePhoto] Max images reached');
+      showAlert(
+        'Límite alcanzado',
+        `Solo puedes agregar hasta ${MAX_IMAGES} fotos por libro`,
+        [{ text: 'OK', onPress: hideAlert }]
+      );
+      return;
+    }
+
     try {
+      console.log('[takePhoto] Requesting camera permissions...');
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('[takePhoto] Permission result:', permissionResult);
       
       if (permissionResult.granted === false) {
+        console.log('[takePhoto] Permission denied');
         // 3. Reemplazar Alert.alert
         showAlert('Permiso necesario', 'Se necesita acceso a la cámara para tomar fotos', [
           { text: 'OK', onPress: hideAlert }
@@ -93,14 +154,19 @@ export default function AgregarScreen() {
         return;
       }
 
+      console.log('[takePhoto] Launching camera...');
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [3, 4],
         quality: 0.8,
       });
+      console.log('[takePhoto] Result:', result);
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        uploadImage(result.assets[0].uri);
+        const isValid = await validateImageSize(result.assets[0].uri);
+        if (isValid) {
+          uploadImage(result.assets[0].uri);
+        }
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -155,15 +221,56 @@ export default function AgregarScreen() {
 
   // Función para mostrar opciones de imagen
   const showImageOptions = () => {
-    // 3. Reemplazar Alert.alert con showAlert (la que pediste)
+    // Verificar límite de imágenes
+    if (bookImages.length >= MAX_IMAGES) {
+      showAlert(
+        'Límite alcanzado',
+        `Solo puedes agregar hasta ${MAX_IMAGES} fotos por libro`,
+        [{ text: 'OK', onPress: hideAlert }]
+      );
+      return;
+    }
+
+    // Mostrar el ImagePickerSheet personalizado
+    setImagePickerVisible(true);
+  };
+
+  // Función para eliminar una imagen
+  const removeImage = (index: number) => {
     showAlert(
-      'Agregar foto',
-      'Selecciona una opción',
+      'Eliminar foto',
+      '¿Estás seguro de que deseas eliminar esta foto?',
       [
-        { text: 'Cámara', onPress: () => { hideAlert(); takePhoto(); } },
-        { text: 'Galería', onPress: () => { hideAlert(); pickImage(); } },
-        { text: 'Cancelar', style: 'cancel', onPress: hideAlert },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: hideAlert
+        },
+        {
+          text: 'Eliminar',
+          onPress: () => {
+            setBookImages(prev => prev.filter((_, i) => i !== index));
+            // Si se elimina la foto principal, establecer la primera como principal
+            if (coverImageIndex === index) {
+              setCoverImageIndex(0);
+            } else if (coverImageIndex > index) {
+              // Ajustar el índice de la foto principal si es necesario
+              setCoverImageIndex(prev => prev - 1);
+            }
+            hideAlert();
+          }
+        }
       ]
+    );
+  };
+
+  // Función para establecer una imagen como portada
+  const setAsCoverImage = (index: number) => {
+    setCoverImageIndex(index);
+    showAlert(
+      'Portada seleccionada',
+      'Esta foto se mostrará como portada del libro',
+      [{ text: 'OK', onPress: hideAlert }]
     );
   };
 
@@ -212,12 +319,10 @@ export default function AgregarScreen() {
         titulo: bookData.title,
         autor: bookData.author,
         descripcion: bookData.description,
-        // Tu backend espera un array de strings para géneros
+        // El backend espera estos nombres de campo
         generos: selectedGenres, 
-        // Tu backend espera un array de strings (URLs) para imágenes
-        urls_imagenes: bookImages, 
-        id_propietario: user.id_usuario, 
-        estado: 'available', // Añadir estado por defecto
+        imagenes: bookImages, // Cambiar de urls_imagenes a imagenes
+        id_usuario: user.id_usuario, // Cambiar de id_propietario a id_usuario
       };
 
       console.log('[DEBUG] Libro a guardar:', bookToSave);
@@ -265,6 +370,7 @@ export default function AgregarScreen() {
       description: '',
     });
     setBookImages([]);
+    setCoverImageIndex(0);
     setSelectedGenres([]);
   };
 
@@ -292,31 +398,107 @@ export default function AgregarScreen() {
         <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Sección de Fotos */}
           <View style={styles.photoSection}>
-            <TouchableOpacity 
-              style={styles.addPhotoButton}
-              onPress={showImageOptions}
-              disabled={uploading} // Deshabilitar mientras se sube
-            >
-              {uploading ? (
-                <ActivityIndicator color="#d500ff" size="large" />
-              ) : (
-                <>
-                  <Ionicons name="camera" size={40} color="#666" />
-                  <ThemedText style={styles.addPhotoText}>Agregar fotos</ThemedText>
-                </>
-              )}
-            </TouchableOpacity>
-            
+            {/* Preview de la portada */}
             {bookImages.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesContainer}>
-                {bookImages.map((imageUrl, index) => (
+              <View style={styles.coverPreviewContainer}>
+                <ThemedText style={styles.coverPreviewLabel}>
+                  Portada seleccionada
+                </ThemedText>
+                <View style={styles.coverPreview}>
                   <Image 
-                    key={index}
-                    source={{ uri: imageUrl }}
-                    style={styles.bookImage}
+                    source={{ uri: bookImages[coverImageIndex] }}
+                    style={styles.coverPreviewImage}
                   />
-                ))}
-              </ScrollView>
+                  <View style={styles.coverBadge}>
+                    <Ionicons name="star" size={16} color="#FFD700" />
+                    <ThemedText style={styles.coverBadgeText}>Principal</ThemedText>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Carrusel de fotos */}
+            {bookImages.length > 0 && (
+              <View style={styles.carouselContainer}>
+                <ThemedText style={styles.carouselLabel}>
+                  Fotos ({bookImages.length}/{MAX_IMAGES})
+                </ThemedText>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  style={styles.carousel}
+                >
+                  {bookImages.map((imageUrl, index) => (
+                    <View key={index} style={styles.carouselImageContainer}>
+                      <Image 
+                        source={{ uri: imageUrl }}
+                        style={styles.carouselImage}
+                      />
+                      
+                      {/* Botón eliminar */}
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => removeImage(index)}
+                      >
+                        <Ionicons name="close-circle" size={28} color="#ff3b30" />
+                      </TouchableOpacity>
+
+                      {/* Indicador de portada o botón para marcar como portada */}
+                      {coverImageIndex === index ? (
+                        <View style={styles.coverIndicator}>
+                          <Ionicons name="star" size={20} color="#FFD700" />
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.setCoverButton}
+                          onPress={() => setAsCoverImage(index)}
+                        >
+                          <Ionicons name="star-outline" size={20} color="#fff" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                  
+                  {/* Botón agregar más fotos */}
+                  {bookImages.length < MAX_IMAGES && (
+                    <TouchableOpacity 
+                      style={styles.addMoreButton}
+                      onPress={showImageOptions}
+                      disabled={uploading}
+                    >
+                      {uploading ? (
+                        <ActivityIndicator color="#d500ff" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="add-circle-outline" size={32} color="#d500ff" />
+                          <ThemedText style={styles.addMoreText}>Agregar</ThemedText>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Botón inicial para agregar primera foto */}
+            {bookImages.length === 0 && (
+              <TouchableOpacity 
+                style={styles.addPhotoButton}
+                onPress={showImageOptions}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <ActivityIndicator color="#d500ff" size="large" />
+                ) : (
+                  <>
+                    <Ionicons name="camera" size={40} color="#666" />
+                    <ThemedText style={styles.addPhotoText}>Agregar fotos</ThemedText>
+                    <ThemedText style={styles.addPhotoSubtext}>
+                      Máximo {MAX_IMAGES} fotos (hasta 5MB cada una)
+                    </ThemedText>
+                  </>
+                )}
+              </TouchableOpacity>
             )}
           </View>
 
@@ -402,6 +584,14 @@ export default function AgregarScreen() {
           buttons={alertConfig.buttons}
           onClose={hideAlert}
         />
+        
+        {/* ImagePickerSheet para seleccionar foto */}
+        <ImagePickerSheet
+          visible={imagePickerVisible}
+          onClose={() => setImagePickerVisible(false)}
+          onCamera={takePhoto}
+          onGallery={pickImage}
+        />
       </ThemedView>
     </SafeAreaView>
   );
@@ -473,6 +663,131 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 10,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  addPhotoSubtext: {
+    color: '#555',
+    marginTop: 5,
+    fontSize: 12,
+    fontWeight: '400',
+  },
+
+  // Cover Preview
+  coverPreviewContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  coverPreviewLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#888',
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+  },
+  coverPreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  coverPreviewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  coverBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  coverBadgeText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
+  // Carousel
+  carouselContainer: {
+    marginBottom: 20,
+  },
+  carouselLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#888',
+    marginBottom: 10,
+  },
+  carousel: {
+    flexDirection: 'row',
+  },
+  carouselImageContainer: {
+    width: 120,
+    height: 150,
+    marginRight: 12,
+    borderRadius: 8,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  carouselImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  coverIndicator: {
+    position: 'absolute',
+    bottom: 5,
+    left: 5,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  setCoverButton: {
+    position: 'absolute',
+    bottom: 5,
+    left: 5,
+    backgroundColor: 'rgba(100, 100, 100, 0.7)',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addMoreButton: {
+    width: 120,
+    height: 150,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#444',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addMoreText: {
+    color: '#d500ff',
+    marginTop: 5,
+    fontSize: 12,
     fontWeight: '600',
   },
   imagesContainer: {

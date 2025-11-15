@@ -37,8 +37,8 @@ export function ChatMessageList({
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={['#8b00ff']}
-          tintColor="#8b00ff"
+          colors={['#d500ff']}
+          tintColor="#d500ff"
         />
       }
     />
@@ -49,5 +49,6 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     flexGrow: 1,
+    backgroundColor: '#151718',
   },
 });

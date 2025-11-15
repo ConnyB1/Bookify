@@ -28,7 +28,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#d500ff', 
+        tabBarActiveTintColor: '#9d34ffff', 
         tabBarInactiveTintColor: '#666666',
         tabBarStyle: {
           position: 'absolute',
@@ -75,7 +75,7 @@ export default function TabLayout() {
             <Ionicons 
               name="add-circle" 
               size={focused ? 28 : 24} 
-              color={focused ? '#d500ff' : color}
+              color={focused ? '#9d34ffff' : color}
             />
           ),
         }}

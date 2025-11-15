@@ -51,12 +51,14 @@ export default function BookDetailScreen() {
   const [libro, setLibro] = useState<LibroDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const bookId = typeof id === 'string' ? parseInt(id, 10) : undefined;
 
   useEffect(() => {
     if (bookId) {
       fetchBookDetails(bookId);
+      setCurrentImageIndex(0); // Resetear al cambiar de libro
     } else {
       setLoading(false);
     }
@@ -93,6 +95,79 @@ export default function BookDetailScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteBook = async () => {
+    if (!user || !tokens || !tokens.accessToken || !libro) return;
+
+    showAlert(
+      'Eliminar Libro',
+      `¿Estás seguro de que deseas eliminar "${libro.titulo}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel', onPress: hideAlert },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            hideAlert();
+            setLoading(true);
+            try {
+              const url = buildApiUrl(`${API_CONFIG.ENDPOINTS.BOOKS}/${libro.id_libro}`);
+              console.log('[DELETE] URL:', url);
+              console.log('[DELETE] Book ID:', libro.id_libro);
+              console.log('[DELETE] Token:', tokens.accessToken ? 'Present' : 'Missing');
+              
+              const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${tokens.accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              console.log('[DELETE] Response status:', response.status);
+              console.log('[DELETE] Response ok:', response.ok);
+
+              // Intentar leer la respuesta
+              let errorData;
+              try {
+                const responseText = await response.text();
+                console.log('[DELETE] Response text:', responseText);
+                errorData = responseText ? JSON.parse(responseText) : {};
+              } catch (parseError) {
+                console.error('[DELETE] Error parsing response:', parseError);
+                errorData = { message: 'Error al procesar la respuesta del servidor' };
+              }
+
+              if (response.ok) {
+                showAlert(
+                  'Éxito',
+                  'El libro ha sido eliminado correctamente.',
+                  [{
+                    text: 'OK',
+                    onPress: () => {
+                      hideAlert();
+                      router.back();
+                    }
+                  }]
+                );
+              } else {
+                throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+              }
+            } catch (error) {
+              console.error('[DELETE] Error deleting book:', error);
+              showAlert(
+                'Error',
+                `No se pudo eliminar el libro: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+                [{ text: 'OK', onPress: hideAlert }]
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleExchangeRequest = async () => {
@@ -221,32 +296,110 @@ export default function BookDetailScreen() {
       />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.card}>
-          {/* Imagen del libro */}
-          {libro.imagenes && libro.imagenes.length > 0 && (
-            <Image source={{ uri: libro.imagenes[0].url_imagen }} style={styles.bookImage} />
+          {/* Carrusel de imágenes del libro */}
+          {libro.imagenes && libro.imagenes.length > 0 ? (
+            <View style={styles.carouselContainer}>
+              {/* Imagen principal */}
+              <View style={styles.imageContainer}>
+                <Image 
+                  source={{ uri: libro.imagenes[currentImageIndex].url_imagen }} 
+                  style={styles.bookImage} 
+                  resizeMode="cover"
+                />
+                
+                {/* Indicador de cantidad de imágenes */}
+                {libro.imagenes.length > 1 && (
+                  <View style={styles.imageCounter}>
+                    <Ionicons name="images" size={16} color="#fff" />
+                    <ThemedText style={styles.imageCounterText}>
+                      {currentImageIndex + 1} / {libro.imagenes.length}
+                    </ThemedText>
+                  </View>
+                )}
+
+                {/* Botones de navegación si hay más de una imagen */}
+                {libro.imagenes.length > 1 && (
+                  <>
+                    {/* Botón anterior */}
+                    {currentImageIndex > 0 && (
+                      <TouchableOpacity
+                        style={[styles.navButton, styles.navButtonLeft]}
+                        onPress={() => setCurrentImageIndex(prev => prev - 1)}
+                      >
+                        <Ionicons name="chevron-back" size={24} color="#fff" />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Botón siguiente */}
+                    {currentImageIndex < libro.imagenes.length - 1 && (
+                      <TouchableOpacity
+                        style={[styles.navButton, styles.navButtonRight]}
+                        onPress={() => setCurrentImageIndex(prev => prev + 1)}
+                      >
+                        <Ionicons name="chevron-forward" size={24} color="#fff" />
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
+
+              {/* Miniaturas */}
+              {libro.imagenes.length > 1 && (
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.thumbnailsContainer}
+                  contentContainerStyle={styles.thumbnailsContent}
+                >
+                  {libro.imagenes.map((imagen, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => setCurrentImageIndex(index)}
+                      style={[
+                        styles.thumbnail,
+                        currentImageIndex === index && styles.thumbnailActive
+                      ]}
+                    >
+                      <Image 
+                        source={{ uri: imagen.url_imagen }}
+                        style={styles.thumbnailImage}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          ) : (
+            <View style={styles.noImageContainer}>
+              <Ionicons name="image-outline" size={60} color="#666" />
+              <ThemedText style={styles.noImageText}>Sin imágenes</ThemedText>
+            </View>
           )}
 
           {/* Información principal */}
           <ThemedText style={styles.title}>{libro.titulo}</ThemedText>
           <ThemedText style={styles.owner}>{libro.propietario?.nombre_usuario || 'Propietario desconocido'}</ThemedText>
 
-          {/* Botón sólido */}
-          <TouchableOpacity
-            onPress={handleExchangeRequest}
-            disabled={sendingRequest || isOwner} // Usar 'isOwner'
-            style={[
-              styles.exchangeButton,
-              (sendingRequest || isOwner) && styles.exchangeButtonDisabled // Usar 'isOwner'
-            ]}
-          >
-            {sendingRequest ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <ThemedText style={styles.exchangeButtonText}>
-                {isOwner ? 'Tu libro' : 'Intercambiar'} 
-              </ThemedText>
-            )}
-          </TouchableOpacity>
+          {/* Botón de intercambio (solo si no es el dueño) */}
+          {!isOwner && (
+            <TouchableOpacity
+              onPress={handleExchangeRequest}
+              disabled={sendingRequest}
+              style={[
+                styles.exchangeButton,
+                sendingRequest && styles.exchangeButtonDisabled
+              ]}
+            >
+              {sendingRequest ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <ThemedText style={styles.exchangeButtonText}>
+                  Intercambiar
+                </ThemedText>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Descripción */}
           <View style={styles.descriptionContainer}>
@@ -276,6 +429,23 @@ export default function BookDetailScreen() {
               <ThemedText style={styles.infoText}>Español</ThemedText>
             </View>
           </View>
+
+          {/* Botón de eliminar (solo si es el dueño) */}
+          {isOwner && (
+            <TouchableOpacity
+              onPress={handleDeleteBook}
+              disabled={loading}
+              style={[
+                styles.deleteButton,
+                loading && styles.deleteButtonDisabled
+              ]}
+            >
+              <Ionicons name="trash-outline" size={20} color="white" />
+              <ThemedText style={styles.deleteButtonText}>
+                Eliminar este libro
+              </ThemedText>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -313,11 +483,99 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
-  bookImage: {
-    width: width * 0.6,
+  // Estilos del carrusel
+  carouselContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  imageContainer: {
+    width: '100%',
     height: width * 0.85,
+    position: 'relative',
     borderRadius: 12,
-    marginBottom: 15,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  bookImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  imageCounter: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  imageCounterText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  navButton: {
+    position: 'absolute',
+    top: '50%',
+    transform: [{ translateY: -20 }],
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  navButtonLeft: {
+    left: 10,
+  },
+  navButtonRight: {
+    right: 10,
+  },
+  thumbnailsContainer: {
+    maxHeight: 80,
+  },
+  thumbnailsContent: {
+    paddingHorizontal: 5,
+    gap: 10,
+  },
+  thumbnail: {
+    width: 60,
+    height: 75,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  thumbnailActive: {
+    borderColor: '#d500ff',
+    shadowColor: '#d500ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  noImageContainer: {
+    width: '100%',
+    height: width * 0.85,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  noImageText: {
+    color: '#666',
+    fontSize: 16,
+    marginTop: 10,
   },
   title: {
     color: 'white',
@@ -398,5 +656,28 @@ const styles = StyleSheet.create({
   errorText: {
     color: 'red',
     marginTop: 10,
+  },
+  deleteButton: {
+    marginTop: 30,
+    backgroundColor: '#dc2626',
+    paddingVertical: 14,
+    borderRadius: 30,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#991b1b',
+  },
+  deleteButtonDisabled: {
+    backgroundColor: '#666',
+    borderColor: '#444',
+    opacity: 0.5,
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -31,7 +31,7 @@ export function ChatInput({ onSend, sending }: ChatInputProps) {
         value={text}
         onChangeText={setText}
         placeholder="Escribe un mensaje..."
-        placeholderTextColor="#666"
+        placeholderTextColor="#888"
         multiline
         maxLength={500}
       />
@@ -60,12 +60,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
-    backgroundColor: '#000',
+    borderTopColor: '#333',
+    backgroundColor: '#151718',
   },
   input: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#2a2a2a',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -74,12 +74,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     maxHeight: 100,
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#444',
   },
   sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8b00ff',
+    backgroundColor: '#d500ff',
     justifyContent: 'center',
     alignItems: 'center',
   },
