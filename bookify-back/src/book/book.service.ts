@@ -215,4 +215,12 @@ export class BookService {
       relations: ['generos', 'imagenes'],
     });
   }
+
+  async delete(id: number): Promise<void> {
+    // Primero eliminar las imágenes asociadas
+    await this.libroImagenRepository.delete({ id_libro: id });
+    
+    // Luego eliminar el libro (las relaciones con géneros se manejan automáticamente con cascade)
+    await this.bookRepository.delete({ id_libro: id });
+  }
 }

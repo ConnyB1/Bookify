@@ -51,16 +51,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   myBubble: {
-    backgroundColor: '#8b00ff',
+    backgroundColor: '#d500ff',
   },
   otherBubble: {
     backgroundColor: '#2a2a2a',
+    borderWidth: 1,
+    borderColor: '#333',
   },
   senderName: {
     fontSize: 12,
-    color: '#aaa',
+    color: '#bbb',
     marginBottom: 4,
     fontWeight: '600',
   },
@@ -68,6 +75,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#fff',
     marginBottom: 4,
+    lineHeight: 20,
   },
   timestamp: {
     fontSize: 11,

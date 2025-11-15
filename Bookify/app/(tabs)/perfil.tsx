@@ -5,12 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  FlatList,
+  FlatList, // Usaremos FlatList como el componente principal de scroll
   ActivityIndicator,
   Image,
-  Alert,
   RefreshControl,
-  Platform,
+  Platform, // Importar Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,11 +20,18 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useExchangeActions } from '@/hooks/useExchangeActions';
 import { API_CONFIG, buildApiUrl } from '@/config/api';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from 'expo-image-picker'; // Importar ImagePicker
+// Importar el hook y el componente de alerta
+import CustomAlert from '@/components/CustomAlert';
+import { useAlertDialog } from '@/hooks/useAlertDialog';
+import ImagePickerSheet from '@/components/ImagePickerSheet';
 
 // --- Definiciones de DTO ---
 interface ImagenDTO {
   url_imagen: string;
+}
+interface GeneroDTO {
+  nombre: string;
 }
 interface LibroDTO {
   id_libro: number;
@@ -39,9 +45,14 @@ export default function PerfilScreen() {
   const {
     user,
     logout,
-    updateUser,
-    tokens,
+    updateUser, // <- Corregido (existe en el contexto)
+    tokens,     // <- Corregido (existe en el contexto)
   } = useAuth();
+  
+  // Instanciar el hook
+  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
+  const [imagePickerVisible, setImagePickerVisible] = useState(false);
+
   const [showNotifications, setShowNotifications] = useState(false);
   const [libros, setLibros] = useState<LibroDTO[]>([]);
   const [loadingLibros, setLoadingLibros] = useState(true);
@@ -72,11 +83,11 @@ export default function PerfilScreen() {
     loadNotifications,
     markAsRead,
     deleteReadNotifications,
-  } = useNotifications(user?.id_usuario, Alert.alert);
+  } = useNotifications(user?.id_usuario, showAlert); // 3. Pasar showAlert
 
   const { handleNotificationPress } = useExchangeActions({
     userId: user?.id_usuario,
-    showAlert: Alert.alert,
+    showAlert: showAlert, // 3. Pasar showAlert
     markAsRead,
     loadNotifications,
     closeNotifications: () => setShowNotifications(false),
@@ -113,13 +124,14 @@ export default function PerfilScreen() {
       }
     } catch (error) {
       console.error('Error al cargar libros del usuario:', error);
-      Alert.alert('Error', 'No se pudieron cargar tus libros.', [
-        { text: 'OK' },
+      // 4. Reemplazar Alert.alert con showAlert
+      showAlert('Error', 'No se pudieron cargar tus libros.', [
+        { text: 'OK', onPress: hideAlert }
       ]);
     } finally {
       setLoadingLibros(false);
     }
-  }, [user, refreshing]);
+  }, [user, refreshing, hideAlert, showAlert]); // Añadir dependencias
 
   useEffect(() => {
     fetchLibros();
@@ -143,15 +155,19 @@ export default function PerfilScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
+    // 4. Reemplazar Alert.alert con showAlert
+    showAlert(
       'Cerrar Sesión',
       '¿Estás seguro que deseas cerrar sesión?',
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel', onPress: hideAlert },
         {
           text: 'Cerrar Sesión',
           style: 'destructive',
-          onPress: async () => await logout(),
+          onPress: async () => {
+            hideAlert(); // Ocultar alerta primero
+            await logout();
+          },
         },
       ],
     );
@@ -179,33 +195,45 @@ export default function PerfilScreen() {
   // ======================================================
   // FUNCIONES PARA SUBIR FOTO DE PERFIL
   // ======================================================
-  const pickImage = async () => {
+  const pickImage = () => {
+    // Mostrar el ImagePickerSheet personalizado
+    setImagePickerVisible(true);
+  };
+
+  const handleGallerySelect = async () => {
+    console.log('[Profile] Gallery selected');
     if (Platform.OS !== 'web') {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
+        showAlert(
           'Permiso requerido',
           'Necesitamos permiso para acceder a tu galería de fotos.',
+          [{ text: 'OK', onPress: hideAlert }]
         );
         return;
       }
     }
+    selectImageFrom('gallery');
+  };
 
-    Alert.alert(
-      'Subir foto de perfil',
-      '¿De dónde quieres seleccionar la imagen?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Galería', onPress: () => selectImageFrom('gallery') },
-        { text: 'Cámara', onPress: () => selectImageFrom('camera') },
-      ],
-    );
+  const handleCameraSelect = async () => {
+    console.log('[Profile] Camera selected');
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert(
+        'Permiso requerido',
+        'Necesitamos permiso para acceder a tu cámara.',
+        [{ text: 'OK', onPress: hideAlert }]
+      );
+      return;
+    }
+    selectImageFrom('camera');
   };
 
   const selectImageFrom = async (source: 'gallery' | 'camera') => {
     let result;
     try {
+      console.log(`[Profile] Launching ${source}...`);
       if (source === 'gallery') {
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -214,20 +242,13 @@ export default function PerfilScreen() {
           quality: 0.8,
         });
       } else {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert(
-            'Permiso requerido',
-            'Necesitamos permiso para acceder a tu cámara.',
-          );
-          return;
-        }
         result = await ImagePicker.launchCameraAsync({
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.8,
         });
       }
+      console.log(`[Profile] Result:`, result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedUri = result.assets[0].uri;
@@ -236,16 +257,19 @@ export default function PerfilScreen() {
       }
     } catch (error) {
       console.error('Error seleccionando imagen:', error);
-      Alert.alert('Error', 'No se pudo seleccionar la imagen.');
+      showAlert('Error', 'No se pudo seleccionar la imagen.', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
     }
   };
 
   const uploadAndSaveProfilePicture = async (uri: string) => {
     // Corrección: Chequear 'tokens' (plural) y 'tokens.accessToken'
     if (!user || !tokens || !tokens.accessToken) {
-      Alert.alert(
+      showAlert(
         'Error',
         'No se pudo identificar al usuario para subir la foto.',
+        [{ text: 'OK', onPress: hideAlert }]
       );
       return;
     }
@@ -278,8 +302,6 @@ export default function PerfilScreen() {
       }
 
       const result = await response.json();
-
-      // Leer la respuesta { data: { imageUrl: '...' } }
       if (!result.success || !result.data || !result.data.imageUrl) {
         throw new Error(
           result.message || 'El servidor no devolvió una URL de imagen',
@@ -288,11 +310,12 @@ export default function PerfilScreen() {
       newPhotoUrl = result.data.imageUrl; // URL de S3
     } catch (error) {
       console.error('Error en Paso 1 (Subida a S3):', error);
-      Alert.alert(
+      showAlert(
         'Error de Subida',
         `No se pudo subir la foto: ${
           error instanceof Error ? error.message : 'Error desconocido'
         }`,
+        [{ text: 'OK', onPress: hideAlert }]
       );
       setProfilePictureUri(
         user?.foto_perfil_url ||
@@ -304,22 +327,16 @@ export default function PerfilScreen() {
 
     // --- Paso 2: Guardar la URL en la base de datos del usuario ---
     try {
-      // Construir la URL con el ID de usuario: /api/auth/profile/picture/:userId
       const saveUrl = `${buildApiUrl(
         API_CONFIG.ENDPOINTS.UPDATE_PROFILE_PICTURE,
       )}/${user.id_usuario}`;
 
       const response = await fetch(saveUrl, {
-        // ======================================================
-        // CORRECCIÓN: Usar 'PATCH' para coincidir con el backend
-        // ======================================================
         method: 'PATCH', // Coincidir con @Patch en auth.controller.ts
         headers: {
           'Content-Type': 'application/json',
-          // Corrección: Usar 'tokens.accessToken'
-          Authorization: `Bearer ${tokens.accessToken}`, // Usar el token personalizado
+          Authorization: `Bearer ${tokens.accessToken}`, 
         },
-        // 'photoUrl' debe coincidir con el @Body() en auth.controller.ts
         body: JSON.stringify({ photoUrl: newPhotoUrl }),
       });
 
@@ -329,24 +346,21 @@ export default function PerfilScreen() {
           errorData.message || 'Error al guardar la URL en el perfil',
         );
       }
-
-      // Leer la respuesta { data: { user: ... } } de auth.service.ts
       const result = await response.json();
-
-      // Corrección: Usar 'updateUser' del contexto
       if (updateUser && result.success && result.data.user) {
-        // Actualizar el contexto de autenticación
         updateUser(result.data.user);
       }
-
-      Alert.alert('Éxito', 'Foto de perfil actualizada correctamente.');
+      showAlert('Éxito', 'Foto de perfil actualizada correctamente.', [
+        { text: 'Genial', onPress: hideAlert }
+      ]);
     } catch (error) {
       console.error('Error en Paso 2 (Guardar URL):', error);
-      Alert.alert(
+      showAlert(
         'Error al Guardar',
         `No se pudo guardar la foto en tu perfil: ${
           error instanceof Error ? error.message : 'Error desconocido'
         }`,
+        [{ text: 'OK', onPress: hideAlert }]
       );
       setProfilePictureUri(
         user?.foto_perfil_url ||
@@ -362,6 +376,28 @@ export default function PerfilScreen() {
 
   const renderListHeader = () => (
     <>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <ThemedText style={styles.headerTitle}>Mi Perfil</ThemedText>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={openNotifications}>
+            <Ionicons name="notifications" size={28} color="#d500ff" />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <ThemedText style={styles.badgeText}>{unreadCount}</ThemedText>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.logoutIconButton}
+            onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={28} color="#d500ff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* PERFIL */}
       <View style={styles.profileCard}>
         <TouchableOpacity onPress={pickImage} disabled={isUploading}>
@@ -390,25 +426,6 @@ export default function PerfilScreen() {
         </View>
       </View>
 
-      {/* Sección de Configuración */}
-      <View style={styles.settingsSection}>
-        <TouchableOpacity
-          style={styles.settingButton}
-          onPress={() => router.push('/(tabs)/ubicacion')}
-        >
-          <View style={styles.settingIcon}>
-            <Ionicons name="location" size={24} color="#d500ff" />
-          </View>
-          <View style={styles.settingContent}>
-            <ThemedText style={styles.settingTitle}>Configurar Ubicación</ThemedText>
-            <Text style={styles.settingDescription}>
-              Establece tu ubicación y radio de búsqueda
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={24} color="#888" />
-        </TouchableOpacity>
-      </View>
-
       {/* Título de la sección de libros */}
       <Text style={styles.sectionTitle}>Mis Libros</Text>
     </>
@@ -431,7 +448,7 @@ export default function PerfilScreen() {
         </Text>
       );
     }
-    return null; // No mostrar nada si la lista tiene datos
+    return null; 
   };
 
   return (
@@ -439,29 +456,6 @@ export default function PerfilScreen() {
       style={styles.safeArea}
       edges={['top', 'left', 'right', 'bottom']}>
       <ThemedView style={styles.container}>
-        {/* HEADER ESTÁTICO */}
-        <View style={styles.header}>
-          <ThemedText style={styles.headerTitle}>Mi Perfil</ThemedText>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.bellButton}
-              onPress={openNotifications}>
-              <Ionicons name="notifications" size={28} color="#d500ff" />
-              {unreadCount > 0 && (
-                <View style={styles.badge}>
-                  <ThemedText style={styles.badgeText}>{unreadCount}</ThemedText>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.logoutIconButton}
-              onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={28} color="#d500ff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* LISTA SCROLLABLE */}
         <FlatList
           data={libros}
           keyExtractor={(item) => item.id_libro.toString()}
@@ -473,7 +467,7 @@ export default function PerfilScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#d500ff']}
+              colors={['#d500ff']} 
               tintColor={'#d500ff'} 
             />
           }
@@ -481,7 +475,7 @@ export default function PerfilScreen() {
             <TouchableOpacity
               style={styles.bookCard}
               activeOpacity={0.7}
-              onPress={() => handleBookPress(item.id_libro)} // Llamar a la función de navegación
+              onPress={() => handleBookPress(item.id_libro)}
             >
               <Image
                 source={{
@@ -504,6 +498,7 @@ export default function PerfilScreen() {
           animationType="slide"
           transparent={true}
           onRequestClose={() => setShowNotifications(false)}>
+          {/* ... (Contenido del modal) ... */}
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -585,6 +580,24 @@ export default function PerfilScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* 5. Añadir el componente CustomAlert al final */}
+        <CustomAlert
+          visible={alertVisible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+          onClose={hideAlert}
+        />
+
+        {/* ImagePickerSheet para seleccionar foto de perfil */}
+        <ImagePickerSheet
+          visible={imagePickerVisible}
+          onClose={() => setImagePickerVisible(false)}
+          onCamera={handleCameraSelect}
+          onGallery={handleGallerySelect}
+        />
+
       </ThemedView>
     </SafeAreaView>
   );
@@ -599,9 +612,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingBottom: 12,
-    backgroundColor: '#151718', // Asegurar que tenga fondo
+    marginBottom: 10,
+    paddingTop: 20, // Añadimos padding superior que estaba en el container
   },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
@@ -625,7 +637,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1E1E',
     borderRadius: 20,
     padding: 20,
-    marginVertical: 12,
+    marginVertical: 20,
   },
   avatar: {
     width: 110,
@@ -634,13 +646,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
+  // Estilo para el indicador de subida
   uploadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 55,
+    borderRadius: 55, // Coincidir con el avatar
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -654,49 +667,6 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   ratingText: { color: '#fff', marginLeft: 5, fontSize: 14 },
-  settingsSection: {
-    marginTop: 10,
-    marginBottom: 10,
-  },
-  settingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  settingIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#2a1a3a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  settingContent: {
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  settingDescription: {
-    fontSize: 14,
-    color: '#888',
-  },
-  infoSection: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    opacity: 0.7,
-  },
   sectionTitle: {
     color: '#fff',
     fontSize: 18,
@@ -711,7 +681,7 @@ const styles = StyleSheet.create({
   },
   // bookList ahora solo gestiona el padding inferior
   bookList: {
-    paddingBottom: 100, // Espacio extra para que no tape la barra de navegación
+    paddingBottom: 40,
   },
   bookCard: {
     backgroundColor: '#1E1E1E',
@@ -719,10 +689,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     margin: 8,
     padding: 10,
-    // --- IMPORTANTE: Ajuste de ancho para 2 columnas ---
     flex: 1,
-    maxWidth: '48%', // Permitir un pequeño espacio
-    // --- Fin de Ajuste ---
+    maxWidth: '48%',
   },
   bookImage: { width: 100, height: 140, borderRadius: 8, marginBottom: 8 },
   bookTitle: {

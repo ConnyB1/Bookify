@@ -23,7 +23,7 @@ export function ChatHeader({ otherUser, isOnline, onBack, onUserPress }: ChatHea
           {otherUser.photo ? (
             <Image source={{ uri: otherUser.photo }} style={styles.avatarImage} />
           ) : (
-            <Ionicons name="person-circle" size={40} color="#8b00ff" />
+            <Ionicons name="person-circle" size={44} color="#fff" />
           )}
         </View>
 
@@ -46,10 +46,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
-    backgroundColor: '#000',
+    borderBottomColor: '#333',
+    backgroundColor: '#151718',
   },
   backButton: {
     marginRight: 12,
@@ -61,19 +61,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2a2a2a',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#d500ff',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#333',
   },
   avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   userInfo: {
     flex: 1,
@@ -85,7 +87,7 @@ const styles = StyleSheet.create({
   },
   userStatus: {
     fontSize: 12,
-    color: '#888',
+    color: '#999',
     marginTop: 2,
   },
 });

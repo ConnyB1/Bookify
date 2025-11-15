@@ -119,7 +119,7 @@ export default function ChatRoomScreen() {
       <SafeAreaView style={styles.safeArea}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8b00ff" />
+          <ActivityIndicator size="large" color="#d500ff" />
           <Text style={styles.loadingText}>Cargando chat...</Text>
         </View>
       </SafeAreaView>
@@ -163,18 +163,20 @@ export default function ChatRoomScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#151718',
   },
   container: {
     flex: 1,
+    backgroundColor: '#151718',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#151718',
   },
   loadingText: {
-    color: '#666',
+    color: '#999',
     marginTop: 12,
     fontSize: 16,
   },
