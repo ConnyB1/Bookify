@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, BadRequestException, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, BadRequestException, Query, UseGuards, Req } from '@nestjs/common';
 import { BookService } from './book.service';
 import type { CreateBookDto } from './dto/book.dto';
 import { Libro } from '../entities/book.entity';
@@ -70,5 +70,31 @@ export class BookController {
   async getBooksByUser(@Param('userId') userId: number): Promise<Libro[]> {
     return this.bookService.findByUser(userId);
   }
-}
 
+  @Delete(':id')
+  async deleteBook(@Param('id') id: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const bookId = parseInt(id, 10);
+      
+      if (isNaN(bookId)) {
+        throw new BadRequestException('ID de libro inválido');
+      }
+
+      // Verificar que el libro existe
+      const book = await this.bookService.findById(bookId);
+      if (!book) {
+        throw new BadRequestException('Libro no encontrado');
+      }
+
+      // Eliminar el libro
+      await this.bookService.delete(bookId);
+
+      return {
+        success: true,
+        message: 'Libro eliminado exitosamente',
+      };
+    } catch (error) {
+      throw new BadRequestException(`Error al eliminar libro: ${error.message}`);
+    }
+  }
+}
