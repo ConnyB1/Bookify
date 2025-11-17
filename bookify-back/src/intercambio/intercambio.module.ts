@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ExchangeController } from './exchange.controller';
-import { ExchangeService } from './exchange.service';
+import { ExchangeController } from './intercambio.controller';
+import { ExchangeService } from './intercambio.service';
 import { Intercambio } from '../entities/exchange.entity';
 import { Libro } from '../entities/book.entity';
 import { Usuario } from '../entities/user.entity';

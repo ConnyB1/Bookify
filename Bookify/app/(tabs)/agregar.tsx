@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import LocationRequiredScreen from '@/components/LocationRequiredScreen';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context'; 
 import {
@@ -375,25 +376,26 @@ export default function AgregarScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ThemedView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <ThemedText style={styles.title}>Agregar Libro</ThemedText>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity 
-              onPress={saveBook}
-              style={styles.saveButton}
-              disabled={saving} // Deshabilitar mientras se guarda
-            >
-              {saving ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <ThemedText style={styles.saveButtonText}>Guardar</ThemedText>
-              )}
-            </TouchableOpacity>
+    <LocationRequiredScreen>
+      <SafeAreaView style={styles.safeArea}>
+        <ThemedView style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <ThemedText style={styles.title}>Agregar Libro</ThemedText>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity 
+                onPress={saveBook}
+                style={styles.saveButton}
+                disabled={saving} // Deshabilitar mientras se guarda
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <ThemedText style={styles.saveButtonText}>Guardar</ThemedText>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
         <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Sección de Fotos */}
@@ -594,6 +596,7 @@ export default function AgregarScreen() {
         />
       </ThemedView>
     </SafeAreaView>
+    </LocationRequiredScreen>
   );
 }
 

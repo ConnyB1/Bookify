@@ -15,11 +15,13 @@ export interface UserData {
   email: string;
   genero?: string;
   foto_perfil_url?: string;
+  latitud?: number;
+  longitud?: number;
+  ciudad?: string;
+  radio_busqueda_km?: number;
+  ubicacion_actualizada_at?: string;
 }
 
-/**
- * Guardar tokens de autenticación
- */
 export const saveTokens = async (tokens: UserTokens): Promise<void> => {
   try {
     await AsyncStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
@@ -28,9 +30,6 @@ export const saveTokens = async (tokens: UserTokens): Promise<void> => {
   }
 };
 
-/**
- * Obtener tokens guardados
- */
 export const getTokens = async (): Promise<UserTokens | null> => {
   try {
     const tokens = await AsyncStorage.getItem(TOKEN_KEY);
@@ -41,9 +40,6 @@ export const getTokens = async (): Promise<UserTokens | null> => {
   }
 };
 
-/**
- * Guardar datos del usuario
- */
 export const saveUserData = async (user: UserData): Promise<void> => {
   try {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -52,9 +48,6 @@ export const saveUserData = async (user: UserData): Promise<void> => {
   }
 };
 
-/**
- * Obtener datos del usuario
- */
 export const getUserData = async (): Promise<UserData | null> => {
   try {
     const user = await AsyncStorage.getItem(USER_KEY);
@@ -65,9 +58,6 @@ export const getUserData = async (): Promise<UserData | null> => {
   }
 };
 
-/**
- * Cerrar sesión (limpiar datos)
- */
 export const logout = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem(TOKEN_KEY);
@@ -77,9 +67,6 @@ export const logout = async (): Promise<void> => {
   }
 };
 
-/**
- * Verificar si hay sesión activa
- */
 export const isAuthenticated = async (): Promise<boolean> => {
   const tokens = await getTokens();
   return tokens !== null;

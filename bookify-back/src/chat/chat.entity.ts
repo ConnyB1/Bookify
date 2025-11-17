@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { 
+  Entity, 
+  PrimaryGeneratedColumn, 
+  Column, 
+  ManyToOne, 
+  JoinColumn, 
+  CreateDateColumn, 
+  Index 
+} from 'typeorm';
 import { Usuario } from '../entities/user.entity';
 
 @Entity('chat')
@@ -6,15 +14,18 @@ export class Chat {
   @PrimaryGeneratedColumn()
   id_chat: number;
 
+  @Index() // 📊 Índice para buscar chats por intercambio
   @Column({ type: 'integer', nullable: true })
   id_intercambio: number | null;
 }
 
 @Entity('chat_usuario')
 export class ChatUsuario {
+  @Index() // 📊 Índice en id_chat para JOIN y búsquedas
   @Column({ primary: true })
   id_chat: number;
 
+  @Index() // 📊 Índice en id_usuario para buscar chats de un usuario
   @Column({ primary: true })
   id_usuario: number;
 
@@ -28,15 +39,18 @@ export class Mensaje {
   @PrimaryGeneratedColumn()
   id_mensaje: number;
 
+  @Index() // 📊 Índice para buscar mensajes por chat
   @Column()
   id_chat: number;
 
+  @Index() // 📊 Índice para buscar mensajes por emisor
   @Column()
   id_usuario_emisor: number;
 
   @Column('text')
   contenido_texto: string;
 
+  @Index() // 📊 Índice para ordenar y filtrar por fecha (usado en ORDER BY y WHERE)
   @CreateDateColumn({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   timestamp: Date;
 

@@ -7,6 +7,7 @@ export enum TipoNotificacion {
   INTERCAMBIO_ACEPTADO = 'intercambio_aceptado',
   INTERCAMBIO_RECHAZADO = 'intercambio_rechazado',
   INTERCAMBIO_CANCELADO = 'intercambio_cancelado',
+  INTERCAMBIO_COMPLETADO = 'intercambio_completado',
   MENSAJE_NUEVO = 'mensaje_nuevo',
 }
 

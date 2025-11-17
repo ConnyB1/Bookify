@@ -5,6 +5,8 @@ import { Libro } from '../entities/book.entity';
 import { Genero } from '../entities/genero.entity';
 import { LibroImagen } from '../entities/libro-imagen.entity';
 import { Usuario } from '../entities/user.entity';
+import { Intercambio } from '../entities/exchange.entity';
+import { Chat, ChatUsuario, Mensaje } from '../chat/chat.entity';
 import { FEATURES } from '../config/features.config';
 import { CreateBookDto } from './dto/book.dto';
 
@@ -19,6 +21,14 @@ export class BookService {
     private libroImagenRepository: Repository<LibroImagen>,
     @InjectRepository(Usuario)
     private usuarioRepository: Repository<Usuario>,
+    @InjectRepository(Intercambio)
+    private intercambioRepository: Repository<Intercambio>,
+    @InjectRepository(Chat)
+    private chatRepository: Repository<Chat>,
+    @InjectRepository(ChatUsuario)
+    private chatUsuarioRepository: Repository<ChatUsuario>,
+    @InjectRepository(Mensaje)
+    private mensajeRepository: Repository<Mensaje>,
   ) {}
 
   async findAll(userId?: number): Promise<any[]> {
@@ -217,10 +227,61 @@ export class BookService {
   }
 
   async delete(id: number): Promise<void> {
-    // Primero eliminar las imágenes asociadas
-    await this.libroImagenRepository.delete({ id_libro: id });
+    console.log(`[BookService] Eliminando libro ID: ${id}`);
     
-    // Luego eliminar el libro (las relaciones con géneros se manejan automáticamente con cascade)
-    await this.bookRepository.delete({ id_libro: id });
+    // 1️⃣ Buscar todos los intercambios que involucran este libro
+    const intercambios = await this.intercambioRepository.find({
+      where: [
+        { id_libro_solicitado_fk: id },
+        { id_libro_ofertado_fk: id }
+      ]
+    });
+    
+    const intercambioIds = intercambios.map(i => i.id_intercambio);
+    console.log(`[BookService] Intercambios encontrados: ${intercambioIds.length}`, intercambioIds);
+    
+    if (intercambioIds.length > 0) {
+      // 2️⃣ Buscar todos los chats asociados a estos intercambios
+      const chats = await this.chatRepository.find({
+        where: { id_intercambio: In(intercambioIds) }
+      });
+      
+      const chatIds = chats.map(c => c.id_chat);
+      console.log(`[BookService] Chats encontrados: ${chatIds.length}`, chatIds);
+      
+      if (chatIds.length > 0) {
+        // 3️⃣ Eliminar mensajes de estos chats
+        const mensajesResult = await this.mensajeRepository.delete({ 
+          id_chat: In(chatIds) 
+        });
+        console.log(`[BookService] Mensajes eliminados: ${mensajesResult.affected || 0}`);
+        
+        // 4️⃣ Eliminar relaciones chat_usuario
+        const chatUsuariosResult = await this.chatUsuarioRepository.delete({ 
+          id_chat: In(chatIds) 
+        });
+        console.log(`[BookService] Relaciones chat_usuario eliminadas: ${chatUsuariosResult.affected || 0}`);
+        
+        // 5️⃣ Eliminar los chats
+        const chatsResult = await this.chatRepository.delete({ 
+          id_chat: In(chatIds) 
+        });
+        console.log(`[BookService] Chats eliminados: ${chatsResult.affected || 0}`);
+      }
+      
+      // 6️⃣ Eliminar los intercambios
+      const intercambiosResult = await this.intercambioRepository.delete({ 
+        id_intercambio: In(intercambioIds) 
+      });
+      console.log(`[BookService] Intercambios eliminados: ${intercambiosResult.affected || 0}`);
+    }
+    
+    // 7️⃣ Eliminar las imágenes del libro
+    const imagenesResult = await this.libroImagenRepository.delete({ id_libro: id });
+    console.log(`[BookService] Imágenes eliminadas: ${imagenesResult.affected || 0}`);
+    
+    // 8️⃣ Finalmente, eliminar el libro
+    const libroResult = await this.bookRepository.delete({ id_libro: id });
+    console.log(`[BookService] Libro eliminado exitosamente. Affected rows: ${libroResult.affected || 0}`);
   }
 }

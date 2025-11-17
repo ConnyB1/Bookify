@@ -7,12 +7,9 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import 'react-native-reanimated';
+import '../global.css';
 
 import { AuthProvider } from '@/contexts/AuthContext';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
 
 export default function RootLayout() {
   useEffect(() => {
@@ -40,6 +37,7 @@ export default function RootLayout() {
               },
             }}
           >
+            <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             <Stack.Screen 

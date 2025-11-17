@@ -64,5 +64,28 @@ export class Intercambio {
 
   @Column({ type: 'timestamptz', name: 'fecha_acuerdo', nullable: true })
   fecha_acuerdo: Date;
+
+  // Confirmaciones de ambos usuarios
+  @Column({ name: 'confirmacion_solicitante', default: false })
+  confirmacion_solicitante: boolean;
+
+  @Column({ name: 'confirmacion_receptor', default: false })
+  confirmacion_receptor: boolean;
+
+  // Ubicación de encuentro propuesta (sin FK, datos directos)
+  @Column({ type: 'decimal', precision: 10, scale: 7, name: 'ubicacion_encuentro_lat', nullable: true })
+  ubicacion_encuentro_lat: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, name: 'ubicacion_encuentro_lng', nullable: true })
+  ubicacion_encuentro_lng: number | null;
+
+  @Column({ type: 'text', name: 'ubicacion_encuentro_nombre', nullable: true })
+  ubicacion_encuentro_nombre: string | null;
+
+  @Column({ type: 'text', name: 'ubicacion_encuentro_direccion', nullable: true })
+  ubicacion_encuentro_direccion: string | null;
+
+  @Column({ type: 'text', name: 'ubicacion_encuentro_place_id', nullable: true })
+  ubicacion_encuentro_place_id: string | null;
 }
 

@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  FlatList, // Usaremos FlatList como el componente principal de scroll
+  FlatList, 
   ActivityIndicator,
   Image,
   RefreshControl,
-  Platform, // Importar Platform
+  Platform, 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,13 +20,11 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useExchangeActions } from '@/hooks/useExchangeActions';
 import { API_CONFIG, buildApiUrl } from '@/config/api';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker'; // Importar ImagePicker
-// Importar el hook y el componente de alerta
+import * as ImagePicker from 'expo-image-picker'; 
 import CustomAlert from '@/components/CustomAlert';
 import { useAlertDialog } from '@/hooks/useAlertDialog';
 import ImagePickerSheet from '@/components/ImagePickerSheet';
 
-// --- Definiciones de DTO ---
 interface ImagenDTO {
   url_imagen: string;
 }
@@ -38,18 +36,16 @@ interface LibroDTO {
   titulo: string;
   imagenes?: ImagenDTO[];
 }
-// --- Fin de DTO ---
 
 export default function PerfilScreen() {
   const router = useRouter();
   const {
     user,
     logout,
-    updateUser, // <- Corregido (existe en el contexto)
-    tokens,     // <- Corregido (existe en el contexto)
+    updateUser, 
+    tokens,    
   } = useAuth();
   
-  // Instanciar el hook
   const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
 
@@ -58,7 +54,6 @@ export default function PerfilScreen() {
   const [loadingLibros, setLoadingLibros] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Estados para la foto de perfil
   const [profilePictureUri, setProfilePictureUri] = useState<string>(
     user?.foto_perfil_url ||
       'https://cdn-icons-png.flaticon.com/512/149/149071.png',
@@ -76,6 +71,18 @@ export default function PerfilScreen() {
     }
   }, [user?.foto_perfil_url]);
 
+  const showAlertWithClose = useCallback((
+    title: string, 
+    message: string, 
+    buttons: any[]
+  ) => {
+    const buttonsWithClose = buttons.map(button => ({
+      ...button,
+      onPress: button.onPress || hideAlert, 
+    }));
+    showAlert(title, message, buttonsWithClose);
+  }, [showAlert, hideAlert]);
+
   const {
     notifications,
     unreadCount,
@@ -83,17 +90,16 @@ export default function PerfilScreen() {
     loadNotifications,
     markAsRead,
     deleteReadNotifications,
-  } = useNotifications(user?.id_usuario, showAlert); // 3. Pasar showAlert
+  } = useNotifications(user?.id_usuario, showAlertWithClose); 
 
   const { handleNotificationPress } = useExchangeActions({
     userId: user?.id_usuario,
-    showAlert: showAlert, // 3. Pasar showAlert
+    showAlert: showAlertWithClose, 
     markAsRead,
     loadNotifications,
     closeNotifications: () => setShowNotifications(false),
   });
 
-  // Cargar libros del usuario
   const fetchLibros = useCallback(async () => {
     if (!user?.id_usuario) {
       setLoadingLibros(false);
@@ -116,7 +122,6 @@ export default function PerfilScreen() {
 
       const result = await response.json();
 
-      // CORRECCIÓN: Esperar un array directo, no 'result.data'
       if (result && Array.isArray(result)) {
         setLibros(result);
       } else {
@@ -124,14 +129,13 @@ export default function PerfilScreen() {
       }
     } catch (error) {
       console.error('Error al cargar libros del usuario:', error);
-      // 4. Reemplazar Alert.alert con showAlert
       showAlert('Error', 'No se pudieron cargar tus libros.', [
         { text: 'OK', onPress: hideAlert }
       ]);
     } finally {
       setLoadingLibros(false);
     }
-  }, [user, refreshing, hideAlert, showAlert]); // Añadir dependencias
+  }, [user, refreshing, hideAlert, showAlert]);
 
   useEffect(() => {
     fetchLibros();
@@ -155,7 +159,7 @@ export default function PerfilScreen() {
   };
 
   const handleLogout = () => {
-    // 4. Reemplazar Alert.alert con showAlert
+    // ✅ Usar showAlert original con hideAlert explícito
     showAlert(
       'Cerrar Sesión',
       '¿Estás seguro que deseas cerrar sesión?',
@@ -192,11 +196,7 @@ export default function PerfilScreen() {
     router.push(`/libro/${bookId}`);
   };
 
-  // ======================================================
-  // FUNCIONES PARA SUBIR FOTO DE PERFIL
-  // ======================================================
   const pickImage = () => {
-    // Mostrar el ImagePickerSheet personalizado
     setImagePickerVisible(true);
   };
 
@@ -252,8 +252,8 @@ export default function PerfilScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedUri = result.assets[0].uri;
-        setProfilePictureUri(selectedUri); // Mostrar la imagen seleccionada
-        await uploadAndSaveProfilePicture(selectedUri); // Subir y guardar
+        setProfilePictureUri(selectedUri); 
+        await uploadAndSaveProfilePicture(selectedUri); 
       }
     } catch (error) {
       console.error('Error seleccionando imagen:', error);
@@ -264,7 +264,6 @@ export default function PerfilScreen() {
   };
 
   const uploadAndSaveProfilePicture = async (uri: string) => {
-    // Corrección: Chequear 'tokens' (plural) y 'tokens.accessToken'
     if (!user || !tokens || !tokens.accessToken) {
       showAlert(
         'Error',
@@ -276,9 +275,7 @@ export default function PerfilScreen() {
 
     setIsUploading(true);
 
-    // --- Paso 1: Subir la imagen a S3 ---
     const formData = new FormData();
-    // 'image' debe coincidir con FileInterceptor('image') en images.controller.ts
     formData.append('image', {
       uri: uri,
       name: `profile-${user.id_usuario}-${Date.now()}.jpg`,
@@ -307,7 +304,7 @@ export default function PerfilScreen() {
           result.message || 'El servidor no devolvió una URL de imagen',
         );
       }
-      newPhotoUrl = result.data.imageUrl; // URL de S3
+      newPhotoUrl = result.data.imageUrl; 
     } catch (error) {
       console.error('Error en Paso 1 (Subida a S3):', error);
       showAlert(
@@ -320,19 +317,18 @@ export default function PerfilScreen() {
       setProfilePictureUri(
         user?.foto_perfil_url ||
           'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-      ); // Revertir
+      ); 
       setIsUploading(false);
       return;
     }
 
-    // --- Paso 2: Guardar la URL en la base de datos del usuario ---
     try {
       const saveUrl = `${buildApiUrl(
         API_CONFIG.ENDPOINTS.UPDATE_PROFILE_PICTURE,
       )}/${user.id_usuario}`;
 
       const response = await fetch(saveUrl, {
-        method: 'PATCH', // Coincidir con @Patch en auth.controller.ts
+        method: 'PATCH', 
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${tokens.accessToken}`, 
@@ -365,14 +361,11 @@ export default function PerfilScreen() {
       setProfilePictureUri(
         user?.foto_perfil_url ||
           'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-      ); // Revertir
+      ); 
     } finally {
       setIsUploading(false);
     }
   };
-  // ======================================================
-  // FIN DE FUNCIONES DE FOTO DE PERFIL
-  // ======================================================
 
   const renderListHeader = () => (
     <>
@@ -424,6 +417,25 @@ export default function PerfilScreen() {
           ))}
           <Text style={styles.ratingText}>4.5</Text>
         </View>
+      </View>
+
+      {/* Sección de Configuración */}
+      <View style={styles.settingsSection}>
+        <TouchableOpacity
+          style={styles.settingButton}
+          onPress={() => router.push('/(tabs)/ubicacion')}
+        >
+          <View style={styles.settingIcon}>
+            <Ionicons name="location" size={24} color="#d500ff" />
+          </View>
+          <View style={styles.settingContent}>
+            <ThemedText style={styles.settingTitle}>Configurar Ubicación</ThemedText>
+            <Text style={styles.settingDescription}>
+              Establece tu ubicación y radio de búsqueda
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#888" />
+        </TouchableOpacity>
       </View>
 
       {/* Título de la sección de libros */}
@@ -646,14 +658,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  // Estilo para el indicador de subida
   uploadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 55, // Coincidir con el avatar
+    borderRadius: 55, 
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -667,6 +678,40 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   ratingText: { color: '#fff', marginLeft: 5, fontSize: 14 },
+  settingsSection: {
+    marginVertical: 12,
+  },
+  settingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  settingIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2A2A2A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    color: '#999',
+    fontSize: 13,
+  },
   sectionTitle: {
     color: '#fff',
     fontSize: 18,
@@ -699,7 +744,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  // --- estilos de notificaciones ---
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',

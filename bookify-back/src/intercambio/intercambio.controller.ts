@@ -1,15 +1,13 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, BadRequestException } from '@nestjs/common';
-import { ExchangeService } from './exchange.service';
-import { CreateExchangeDto, UpdateExchangeDto, ExchangeResponseDto } from './exchange.dto';
+import { Controller, Get, Post, Patch, Put, Body, Param, Query, BadRequestException } from '@nestjs/common';
+import { ExchangeService } from './intercambio.service';
+import { CreateExchangeDto, UpdateExchangeDto, ExchangeResponseDto } from './intercambio.dto';
+import { ProposeMeetingLocationDto } from './dto/meeting-location.dto';
 
 @Controller('api/exchange')
 export class ExchangeController {
   constructor(private readonly exchangeService: ExchangeService) {}
 
-  /**
-   * Crear solicitud de intercambio
-   * POST /api/exchange/request
-   */
+
   @Post('request')
   async createRequest(@Body() dto: CreateExchangeDto): Promise<{
     success: boolean;
@@ -104,6 +102,96 @@ export class ExchangeController {
         success: true,
         data: exchange,
         message: `Intercambio ${dto.estado_propuesta === 'accepted' ? 'aceptado' : 'rechazado'} correctamente`,
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  /**
+   * Seleccionar libro para ofrecer en intercambio
+   * PUT /api/exchange/:id/offer-book
+   */
+  @Put(':id/offer-book')
+  async offerBook(
+    @Param('id') id: string,
+    @Body() body: { id_libro_ofertado: number },
+  ): Promise<{
+    success: boolean;
+    data: ExchangeResponseDto;
+    message: string;
+  }> {
+    try {
+      const exchange = await this.exchangeService.offerBook(
+        Number(id),
+        body.id_libro_ofertado,
+      );
+      return {
+        success: true,
+        data: exchange,
+        message: 'Libro ofrecido correctamente',
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  /**
+   * Proponer ubicación de encuentro
+   * POST /api/exchange/:id/propose-location
+   */
+  @Post(':id/propose-location')
+  async proposeMeetingLocation(
+    @Param('id') id: string,
+    @Body() dto: ProposeMeetingLocationDto,
+  ): Promise<{
+    success: boolean;
+    data: any;
+    message: string;
+  }> {
+    try {
+      const result = await this.exchangeService.proposeMeetingLocation(
+        Number(id),
+        dto.lat,
+        dto.lng,
+        dto.nombre,
+        dto.direccion,
+        dto.place_id,
+      );
+      return {
+        success: true,
+        data: result.data,
+        message: 'Ubicación de encuentro propuesta correctamente',
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  /**
+   * Confirmar intercambio (bilateral)
+   * PUT /api/exchange/:id/confirm?userId=123
+   */
+  @Put(':id/confirm')
+  async confirmExchange(
+    @Param('id') id: string,
+    @Query('userId') userId: string,
+  ): Promise<{
+    success: boolean;
+    data: any;
+    message: string;
+  }> {
+    try {
+      const result = await this.exchangeService.confirmExchange(
+        Number(id),
+        Number(userId),
+      );
+      return {
+        success: true,
+        data: result.data,
+        message: result.data.ambos_confirmaron 
+          ? '¡Intercambio completado! Ambos usuarios han confirmado' 
+          : 'Confirmación registrada. Esperando confirmación del otro usuario',
       };
     } catch (error) {
       throw new BadRequestException(error.message);

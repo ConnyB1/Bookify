@@ -9,9 +9,12 @@ interface ChatHeaderProps {
   isOnline: boolean;
   onBack: () => void;
   onUserPress: () => void;
+  showExchangeCard?: boolean;
+  onToggleExchangeCard?: () => void;
+  hasExchange?: boolean;
 }
 
-export function ChatHeader({ otherUser, isOnline, onBack, onUserPress }: ChatHeaderProps) {
+export function ChatHeader({ otherUser, isOnline, onBack, onUserPress, showExchangeCard, onToggleExchangeCard, hasExchange }: ChatHeaderProps) {
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -37,6 +40,21 @@ export function ChatHeader({ otherUser, isOnline, onBack, onUserPress }: ChatHea
           </Text>
         </View>
       </TouchableOpacity>
+
+      {/* Botón para mostrar/ocultar información del intercambio */}
+      {hasExchange && onToggleExchangeCard && (
+        <TouchableOpacity 
+          onPress={onToggleExchangeCard} 
+          style={styles.toggleButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons 
+            name={showExchangeCard ? "location" : "location-outline"} 
+            size={26} 
+            color={showExchangeCard ? "#d500ff" : "#999"} 
+          />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -89,5 +107,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 2,
+  },
+  toggleButton: {
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 8,
+    backgroundColor: '#252525',
   },
 });

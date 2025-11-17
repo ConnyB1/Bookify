@@ -31,8 +31,11 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   // Escuchar en todas las interfaces para que dispositivos en la LAN puedan alcanzar el backend
   await app.listen(port, '0.0.0.0');
-  const url = await app.getUrl();
-  console.log(`🚀 Backend running on ${url}`);
-  console.log(`📁 Image upload endpoint: ${url}/api/images/upload/book`);
+  
+  console.log(`🚀 Backend running on:`);
+  console.log(`   - Local:   http://127.0.0.1:${port}`);
+  console.log(`   - Network: http://0.0.0.0:${port} (accessible from LAN)`);
+  console.log(`📁 Image upload endpoint: http://0.0.0.0:${port}/api/images/upload/book`);
+  console.log(`\n⚠️  Configure EXPO_PUBLIC_API_URL in your .env to: http://[YOUR_LOCAL_IP]:${port}`);
 }
 bootstrap();

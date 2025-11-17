@@ -16,6 +16,7 @@ export enum EstadoLibro {
   AVAILABLE = 'available',
   EXCHANGE_PENDING = 'exchange_pending',
   UNAVAILABLE = 'unavailable',
+  EXCHANGED = 'exchanged',
 }
 
 @Entity('libro') 

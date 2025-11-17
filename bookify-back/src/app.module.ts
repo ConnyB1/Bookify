@@ -7,7 +7,7 @@ import { BookModule } from './book/book.module';
 import { ImagesModule } from './images/images.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
-import { ExchangeModule } from './exchange/exchange.module';
+import { ExchangeModule } from './intercambio/intercambio.module';
 import { NotificationModule } from './notifications/notification.module';
 import { UserModule } from './user/user.module';
 

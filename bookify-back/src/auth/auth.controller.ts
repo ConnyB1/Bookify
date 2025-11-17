@@ -44,6 +44,7 @@ export class AuthController {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
+    // ✅ FIX: Incluir TODOS los campos necesarios, especialmente latitud/longitud
     return {
       success: true,
       data: {
@@ -53,6 +54,11 @@ export class AuthController {
           email: user.email,
           genero: user.genero,
           foto_perfil_url: user.foto_perfil_url,
+          latitud: user.latitud,                           // ✅ Agregado
+          longitud: user.longitud,                         // ✅ Agregado
+          ciudad: user.ciudad,                             // ✅ Agregado
+          radio_busqueda_km: user.radio_busqueda_km,       // ✅ Agregado
+          ubicacion_actualizada_at: user.ubicacion_actualizada_at, // ✅ Agregado
         },
       },
     };

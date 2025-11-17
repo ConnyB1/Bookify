@@ -3,6 +3,7 @@ import Header from '@/components/Bookify-componentes/Encabezadobook';
 import FilterButtons from '@/components/filter-buttons';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
+import LocationRequiredScreen from '@/components/LocationRequiredScreen';
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   FlatList,
@@ -131,73 +132,75 @@ export default function InicioScreen() {
 
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.container}>
-          
-        {/* Encabezado */}
-        <Header />
-
-        {/* Filtros */}
-        <FilterButtons 
-          onFilterChange={handleFilterChange}
-          initialFilter={currentFilter}
-        />
-
-        {/* Lista de Libros */}
-        {loading ? (
-          <ActivityIndicator size="large" color="#d500ff" style={styles.loader} />
-          
-        ) : filteredBooks.length === 0 ? (
-
-          <View style={styles.emptyState}>
+    <LocationRequiredScreen>
+      <SafeAreaView style={styles.safeArea}>
+          <ThemedView style={styles.container}>
             
-            <Ionicons name="book-outline" size={80} color="#666" />
-            <ThemedText style={styles.emptyTitle}>
-              {currentFilter === 'favorites' ? 'Sin favoritos' : 'No hay libros disponibles'}
-            </ThemedText>
-            <ThemedText style={styles.emptySubtitle}>
-              {currentFilter === 'favorites' 
-                ? 'Aún no has marcado ningún libro como favorito' 
-                : 'Desliza hacia abajo para actualizar'}
-            </ThemedText>
-          </View>
-        ) : (
-          <>
-            {console.log('[DEBUG] Rendering FlatList with', filteredBooks.length, 'books')}
-            <FlatList
-              data={filteredBooks}
-              renderItem={({ item }) => {
-                console.log('[DEBUG] Rendering book:', item.titulo);
-                return (
-                  <BookItem 
-                    id={item.id_libro} 
-                    title={item.titulo} 
-                    image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
-                    genres={item.generos?.map(g => g.nombre) || []}
-                    distance={item.distancia_km}
-                    onInfoPress={handleBookInfoPress}
+          {/* Encabezado */}
+          <Header />
+
+          {/* Filtros */}
+          <FilterButtons 
+            onFilterChange={handleFilterChange}
+            initialFilter={currentFilter}
+          />
+
+          {/* Lista de Libros */}
+          {loading ? (
+            <ActivityIndicator size="large" color="#d500ff" style={styles.loader} />
+            
+          ) : filteredBooks.length === 0 ? (
+
+            <View style={styles.emptyState}>
+              
+              <Ionicons name="book-outline" size={80} color="#666" />
+              <ThemedText style={styles.emptyTitle}>
+                {currentFilter === 'favorites' ? 'Sin favoritos' : 'No hay libros disponibles'}
+              </ThemedText>
+              <ThemedText style={styles.emptySubtitle}>
+                {currentFilter === 'favorites' 
+                  ? 'Aún no has marcado ningún libro como favorito' 
+                  : 'Desliza hacia abajo para actualizar'}
+              </ThemedText>
+            </View>
+          ) : (
+            <>
+              {console.log('[DEBUG] Rendering FlatList with', filteredBooks.length, 'books')}
+              <FlatList
+                data={filteredBooks}
+                renderItem={({ item }) => {
+                  console.log('[DEBUG] Rendering book:', item.titulo);
+                  return (
+                    <BookItem 
+                      id={item.id_libro} 
+                      title={item.titulo} 
+                      image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
+                      genres={item.generos?.map(g => g.nombre) || []}
+                      distance={item.distancia_km}
+                      onInfoPress={handleBookInfoPress}
+                    />
+                  );
+                }}
+                keyExtractor={(item) => item.id_libro.toString()}
+                numColumns={2}
+                columnWrapperStyle={{justifyContent: 'flex-start'}}
+                contentContainerStyle={styles.listContainer}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#d500ff']} 
+                    tintColor="#d500ff" 
+                    title="Actualizando libros..." 
+                    titleColor="#d500ff"
                   />
-                );
-              }}
-              keyExtractor={(item) => item.id_libro.toString()}
-              numColumns={2}
-              columnWrapperStyle={{justifyContent: 'flex-start'}}
-              contentContainerStyle={styles.listContainer}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  colors={['#d500ff']} 
-                  tintColor="#d500ff" 
-                  title="Actualizando libros..." 
-                  titleColor="#d500ff"
-                />
-              }
-            />
-          </>
-        )}
-      </ThemedView>
-    </SafeAreaView>
+                }
+              />
+            </>
+          )}
+        </ThemedView>
+      </SafeAreaView>
+    </LocationRequiredScreen>
   );
 }
 
@@ -212,7 +215,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   listContainer: {
-    paddingBottom: 100, // Espacio para la barra de navegación
+    paddingBottom: 350, 
   },
   loader: {
     flex: 1,

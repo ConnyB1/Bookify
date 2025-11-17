@@ -1,5 +1,6 @@
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
+import LocationRequiredScreen from '@/components/LocationRequiredScreen';
 import SearchBar from '@/components/SearchBar';
 import GenreSelector from '@/components/Bookify-componentes/GenreSelector';
 import SearchResults from '@/components/Bookify-componentes/SearchResults';
@@ -22,35 +23,37 @@ export default function BuscarScreen() {
   } = useBookSearch();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      
-      <ThemedView style={styles.container}>
-        {/* <Header /> descomentar si queremos bookify emasol */}
-        <View style={styles.header}>
-          
-          <ThemedText style={styles.title}>Buscar</ThemedText>
-        </View>
+    <LocationRequiredScreen>
+      <SafeAreaView style={styles.safeArea}>
         
-        <SearchBar
-          value={searchText}
-          onChangeText={setSearchText}
-          placeholder="Busca por título, autor..."
-        />
+        <ThemedView style={styles.container}>
+          {/* <Header /> descomentar si queremos bookify emasol */}
+          <View style={styles.header}>
+            
+            <ThemedText style={styles.title}>Buscar</ThemedText>
+          </View>
+          
+          <SearchBar
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Busca por título, autor..."
+          />
 
-        <GenreSelector
-          genres={GENRES}
-          selectedGenres={selectedGenres}
-          onGenreToggle={toggleGenre}
-        />
+          <GenreSelector
+            genres={GENRES}
+            selectedGenres={selectedGenres}
+            onGenreToggle={toggleGenre}
+          />
 
-        <SearchResults
-          books={books}
-          loading={loading}
-          searchText={searchText}
-          selectedGenres={selectedGenres}
-        />
-      </ThemedView>
-    </SafeAreaView>
+          <SearchResults
+            books={books}
+            loading={loading}
+            searchText={searchText}
+            selectedGenres={selectedGenres}
+          />
+        </ThemedView>
+      </SafeAreaView>
+    </LocationRequiredScreen>
   );
 }
 

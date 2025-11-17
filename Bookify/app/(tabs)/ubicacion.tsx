@@ -26,7 +26,7 @@ interface UserLocation {
 }
 
 export default function LocationSettingsScreen() {
-  const { user } = useAuth();
+  const { user, syncUserFromBackend } = useAuth();
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -136,6 +136,8 @@ export default function LocationSettingsScreen() {
 
       if (result.success) {
         setLocation(result.data);
+        // ✅ FIX: Sincronizar el contexto de Auth con los datos actualizados del backend
+        await syncUserFromBackend();
       }
     } catch (error) {
       console.error('Error saving location:', error);
@@ -163,6 +165,8 @@ export default function LocationSettingsScreen() {
       if (result.success) {
         Alert.alert('Radio Actualizado', `Ahora verás libros dentro de ${radius} km`);
         loadUserLocation();
+        // ✅ FIX: Sincronizar el contexto de Auth con los datos actualizados del backend
+        await syncUserFromBackend();
       }
     } catch (error) {
       console.error('Error updating radius:', error);

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getUserData, getTokens, saveUserData, saveTokens, logout as logoutUtil, UserData, UserTokens } from '../utils/auth';
+import { API_CONFIG, buildApiUrl } from '../config/api';
 
 interface AuthContextType {
   user: UserData | null;
@@ -8,7 +9,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (user: UserData, tokens: UserTokens) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (userData: UserData) => Promise<void>; // <-- 1. AÑADIDO DE VUELTA
+  updateUser: (userData: UserData) => Promise<void>;
+  syncUserFromBackend: () => Promise<void>; // Nueva función para sincronizar
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,12 +35,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (savedUser && savedTokens) {
         setUser(savedUser);
         setTokens(savedTokens);
+        
+        // Sincronizar datos del usuario desde el backend al iniciar
+        await syncUserDataFromBackend(savedUser.id_usuario, savedTokens.accessToken);
       }
     } catch (error) {
       console.error('Error checking auth:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const syncUserDataFromBackend = async (userId: number, token: string) => {
+    try {
+      const response = await fetch(
+        buildApiUrl(API_CONFIG.ENDPOINTS.GET_PROFILE),
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (response.ok) {
+        const result = await response.json();
+        
+        // ✅ FIX: El backend devuelve result.data.user, no result.data directamente
+        if (result.success && result.data && result.data.user) {
+          const userData = result.data.user; // Extraer el objeto user anidado
+          
+          const updatedUser: UserData = {
+            id_usuario: userData.id_usuario,
+            nombre_usuario: userData.nombre_usuario,
+            email: userData.email,
+            genero: userData.genero,
+            foto_perfil_url: userData.foto_perfil_url,
+            latitud: userData.latitud,
+            longitud: userData.longitud,
+            ciudad: userData.ciudad,
+            radio_busqueda_km: userData.radio_busqueda_km,
+            ubicacion_actualizada_at: userData.ubicacion_actualizada_at,
+          };
+          
+          await saveUserData(updatedUser);
+          setUser(updatedUser);
+        }
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error sincronizando usuario:', error);
+    }
+  };
+
+  const syncUserFromBackend = async () => {
+    if (!user || !tokens) {
+      return;
+    }
+    await syncUserDataFromBackend(user.id_usuario, tokens.accessToken);
   };
 
   const login = async (userData: UserData, userTokens: UserTokens) => {
@@ -79,7 +131,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isAuthenticated: !!user && !!tokens,
         login,
         logout,
-        updateUser, // <-- 3. EXPUESTA EN EL CONTEXTO
+        updateUser,
+        syncUserFromBackend,
       }}
     >
       {children}

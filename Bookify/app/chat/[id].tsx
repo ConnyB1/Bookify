@@ -18,11 +18,13 @@ import { isSupabaseEnabled } from '../../config/supabase';
 import { useChatMessages } from '../../hooks/chat/useChatMessages';
 import { useChatPresence } from '../../hooks/chat/useChatPresence';
 import { useChatRealtime } from '../../hooks/chat/useChatRealtime';
+import { useChatExchange } from '../../hooks/chat/useChatExchange';
 
 // Componentes
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessageList } from '../../components/chat/ChatMessageList';
 import { ChatInput } from '../../components/chat/ChatInput';
+import { ExchangeBookCard } from '../../components/chat/ExchangeBookCard';
 
 // Tipos
 import type { ChatUser } from '../../types/chat';
@@ -40,6 +42,7 @@ export default function ChatRoomScreen() {
   const chatId = id ? parseInt(id, 10) : 0;
   const otherUserIdNum = otherUserId ? parseInt(otherUserId, 10) : 0;
   const flatListRef = useRef<FlatList>(null);
+  const [showExchangeCard, setShowExchangeCard] = React.useState(false); // Cerrado por defecto
 
   // Información del otro usuario
   const otherUser: ChatUser = {
@@ -63,6 +66,15 @@ export default function ChatRoomScreen() {
 
   // Hook de presencia
   const { isOnline, setupPresence } = useChatPresence();
+
+  // Hook de intercambio
+  const {
+    exchange,
+    loading: exchangeLoading,
+    canSelectBook,
+    selectOfferedBook,
+    reloadExchange,
+  } = useChatExchange(chatId, user?.id_usuario);
 
   // Función para hacer scroll al final
   const scrollToEnd = () => {
@@ -113,6 +125,27 @@ export default function ChatRoomScreen() {
     setTimeout(scrollToEnd, 100);
   };
 
+  // Manejar selección de libro para ofrecer
+  const handleSelectBook = () => {
+    if (!exchange) return;
+    
+    // El receptor selecciona un libro del solicitante
+    // otherUserId es el ID del solicitante
+    const otherUserId = exchange.id_usuario_solicitante;
+    
+    console.log('[Chat] Navegando a seleccionar libro del usuario:', otherUserId);
+    
+    // Navegar a una pantalla para seleccionar un libro del solicitante
+    router.push({
+      pathname: '/select-book-for-exchange',
+      params: {
+        chatId: chatId.toString(),
+        exchangeId: exchange.id_intercambio.toString(),
+        otherUserId: otherUserId.toString(),
+      },
+    } as any);
+  };
+
   // Pantalla de carga
   if (loading) {
     return (
@@ -143,7 +176,21 @@ export default function ChatRoomScreen() {
               router.push(`/perfil/${otherUserIdNum}` as any);
             }
           }}
+          showExchangeCard={showExchangeCard}
+          onToggleExchangeCard={() => setShowExchangeCard(!showExchangeCard)}
+          hasExchange={!!exchange}
         />
+
+        {/* Mostrar información del intercambio si existe */}
+        {exchange && !exchangeLoading && showExchangeCard && (
+          <ExchangeBookCard
+            exchange={exchange}
+            canSelectBook={canSelectBook}
+            onSelectBook={handleSelectBook}
+            currentUserId={user?.id_usuario}
+            onExchangeUpdate={reloadExchange}
+          />
+        )}
 
         <ChatMessageList
           messages={messages}
