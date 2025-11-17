@@ -226,7 +226,7 @@ export function ExchangeBookCard({ exchange, canSelectBook, onSelectBook, curren
           {bothConfirmed ? (
             <View style={styles.completedBanner}>
               <Ionicons name="checkmark-circle" size={28} color="#4CAF50" />
-              <Text style={styles.completedText}>¡Intercambio Completado! 🎉</Text>
+              <Text style={styles.completedText}>¡Intercambio Completado!</Text>
               <Text style={styles.completedSubtext}>Pueden coordinar la entrega</Text>
             </View>
           ) : (
