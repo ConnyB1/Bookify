@@ -7,6 +7,7 @@ import { Usuario } from '../entities/user.entity';
 import { Notificacion, TipoNotificacion } from '../entities/notification.entity';
 import { CreateExchangeDto, UpdateExchangeDto, ExchangeResponseDto } from './intercambio.dto';
 import { ChatService } from '../chat/chat.service';
+import { NotificationService } from '../notifications/notification.service';
 
 @Injectable()
 export class ExchangeService {
@@ -20,6 +21,7 @@ export class ExchangeService {
     @InjectRepository(Notificacion)
     private notificacionRepository: Repository<Notificacion>,
     private chatService: ChatService,
+    private notificationService: NotificationService,
   ) {}
 
   /**
@@ -67,6 +69,24 @@ export class ExchangeService {
     });
 
     await this.notificacionRepository.save(notificacion);
+
+    // 🔔 Enviar push notification
+    try {
+      if (libro.propietario.push_token) {
+        await this.notificationService.sendPushNotification(
+          libro.propietario.push_token,
+          '📚 Nueva solicitud de intercambio',
+          `${solicitante?.nombre_usuario || 'Un usuario'} quiere intercambiar "${libro.titulo}"`,
+          { 
+            type: 'exchange_request', 
+            exchangeId: savedIntercambio.id_intercambio,
+            bookTitle: libro.titulo
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error enviando push notification:', error);
+    }
 
     // Retornar respuesta formateada
     const intercambioCompleto = await this.intercambioRepository.findOne({
@@ -195,6 +215,32 @@ export class ExchangeService {
 
     await this.notificacionRepository.save(notificacion);
 
+    // 🔔 Enviar push notification
+    try {
+      const receptor = await this.usuarioRepository.findOne({ 
+        where: { id_usuario: intercambio.id_usuario_solicitante_fk } 
+      });
+      
+      if (receptor?.push_token) {
+        const titulo = dto.estado_propuesta === EstadoPropuesta.ACCEPTED 
+          ? '✅ Intercambio aceptado'
+          : '❌ Intercambio rechazado';
+        
+        await this.notificationService.sendPushNotification(
+          receptor.push_token,
+          titulo,
+          mensaje,
+          { 
+            type: dto.estado_propuesta === EstadoPropuesta.ACCEPTED ? 'exchange_accepted' : 'exchange_rejected',
+            exchangeId: intercambioId,
+            bookTitle: intercambio.libro_solicitado.titulo
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error enviando push notification:', error);
+    }
+
     let chatId: number | undefined;
 
     // Si el intercambio fue aceptado, crear chat automáticamente
@@ -292,6 +338,28 @@ export class ExchangeService {
 
     await this.notificacionRepository.save(notificacion);
 
+    // 🔔 Enviar push notification
+    try {
+      const receptor = await this.usuarioRepository.findOne({ 
+        where: { id_usuario: intercambio.id_usuario_solicitante_fk } 
+      });
+      
+      if (receptor?.push_token) {
+        await this.notificationService.sendPushNotification(
+          receptor.push_token,
+          '📖 Libro ofrecido para intercambio',
+          `${intercambio.usuario_solicitante_receptor.nombre_usuario} te ofrece "${libro.titulo}"`,
+          { 
+            type: 'book_offered',
+            exchangeId: intercambioId,
+            bookTitle: libro.titulo
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error enviando push notification:', error);
+    }
+
     // Retornar respuesta formateada
     const intercambioCompleto = await this.intercambioRepository.findOne({
       where: { id_intercambio: intercambioId },
@@ -343,8 +411,33 @@ export class ExchangeService {
 
     await this.intercambioRepository.save(intercambio);
 
-    // Notificar al otro usuario
-    // Determinar quién propuso la ubicación y notificar al otro
+    // 🔔 Notificar al otro usuario con push notification
+    try {
+      // Determinar el receptor (el otro usuario del intercambio)
+      const otroUsuarioId = intercambio.id_usuario_solicitante_fk === intercambio.usuario_solicitante.id_usuario
+        ? intercambio.id_usuario_solicitante_receptor_fk
+        : intercambio.id_usuario_solicitante_fk;
+      
+      const receptor = await this.usuarioRepository.findOne({ 
+        where: { id_usuario: otroUsuarioId } 
+      });
+      
+      if (receptor?.push_token) {
+        await this.notificationService.sendPushNotification(
+          receptor.push_token,
+          '📍 Ubicación de encuentro propuesta',
+          `Se propuso "${nombre}" como punto de encuentro`,
+          { 
+            type: 'meeting_location_proposed',
+            exchangeId: intercambio.id_intercambio,
+            locationName: nombre
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error enviando push notification:', error);
+    }
+
     return {
       success: true,
       data: {
@@ -440,6 +533,32 @@ export class ExchangeService {
     });
 
     await this.notificacionRepository.save(notificacion);
+
+    // 🔔 Enviar push notification
+    try {
+      const receptor = await this.usuarioRepository.findOne({ 
+        where: { id_usuario: otroUsuarioId } 
+      });
+      
+      if (receptor?.push_token) {
+        const titulo = ambosConfirmaron 
+          ? '🎉 ¡Intercambio completado!'
+          : '✓ Confirmación recibida';
+        
+        await this.notificationService.sendPushNotification(
+          receptor.push_token,
+          titulo,
+          mensaje,
+          { 
+            type: ambosConfirmaron ? 'exchange_completed' : 'exchange_confirmed',
+            exchangeId: intercambioId,
+            locationName: intercambio.ubicacion_encuentro_nombre
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error enviando push notification:', error);
+    }
 
     return {
       success: true,

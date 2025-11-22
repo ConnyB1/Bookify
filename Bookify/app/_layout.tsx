@@ -9,9 +9,16 @@ import { Platform } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
 
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { useNotificaciones } from '@/hooks/notificaciones';
 
-export default function RootLayout() {
+// Componente interno que tiene acceso al AuthContext
+function AppContent() {
+  const { isAuthenticated } = useAuth();
+  
+  // 🔔 Activar notificaciones push automáticamente cuando el usuario esté autenticado
+  useNotificaciones(isAuthenticated);
+
   useEffect(() => {
     if (Platform.OS === 'android') {
       // Ocultar completamente la barra de navegación (modo inmersivo)
@@ -23,41 +30,47 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <SafeAreaProvider style={styles.safeAreaProvider}>
+      <ThemeProvider value={DarkTheme}>
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: '#000',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen 
+            name="Auth/Login" 
+            options={{ 
+              headerShown: false,
+              presentation: 'card',
+            }} 
+          />
+          <Stack.Screen 
+            name="Auth/Register" 
+            options={{ 
+              headerShown: false,
+              presentation: 'card',
+            }} 
+          />
+        </Stack>
+        <StatusBar style="light" />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
     <AuthProvider>
-      <SafeAreaProvider style={styles.safeAreaProvider}>
-        <ThemeProvider value={DarkTheme}>
-          <Stack
-            screenOptions={{
-              headerStyle: {
-                backgroundColor: '#000',
-              },
-              headerTintColor: '#fff',
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
-          >
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            <Stack.Screen 
-              name="Auth/Login" 
-              options={{ 
-                headerShown: false,
-                presentation: 'card',
-              }} 
-            />
-            <Stack.Screen 
-              name="Auth/Register" 
-              options={{ 
-                headerShown: false,
-                presentation: 'card',
-              }} 
-            />
-          </Stack>
-          <StatusBar style="light" />
-        </ThemeProvider>
-      </SafeAreaProvider>
+      <AppContent />
     </AuthProvider>
   );
 }

@@ -45,7 +45,6 @@ export function useChatRealtime({
 
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
-      console.log('⏹️ Deteniendo polling...');
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
@@ -62,8 +61,6 @@ export function useChatRealtime({
 
   const setupRealtimeSubscription = () => {
     if (!supabase || !chatId || !currentUser) return;
-
-    console.log('🔄 Setting up Supabase Realtime for chat:', chatId);
 
     const channel = supabase
       .channel(`chat-${chatId}`, {
@@ -89,10 +86,6 @@ export function useChatRealtime({
           filter: `id_chat=eq.${chatId}`,
         },
         async (payload) => {
-          console.log('✅ New message received via Realtime:', payload);
-          console.log('📦 Payload new record:', payload.new);
-
-          // Verificar si el mensaje es de otro usuario
           const newMessageData = payload.new as any;
           if (newMessageData.id_usuario_emisor === currentUser.id_usuario) {
             console.log('⏭️ Ignorando mi propio mensaje');
@@ -119,18 +112,15 @@ export function useChatRealtime({
       )
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Subscribed to Realtime updates for chat', chatId);
-          // Trackear presencia del usuario actual
           await channel.track({
             user_id: currentUser.id_usuario,
             username: currentUser.nombre_usuario,
             online_at: new Date().toISOString(),
           });
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Realtime subscription error, falling back to polling');
-          // Fallback a polling se manejará en el componente
+          // Fallback a polling se manejará en el component
         } else {
-          console.log(`📡 Realtime status: ${status}`);
+          console.log(`ealtime status: ${status}`);
         }
       });
 

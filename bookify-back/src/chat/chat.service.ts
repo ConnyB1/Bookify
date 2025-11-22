@@ -6,6 +6,7 @@ import { Usuario } from '../entities/user.entity';
 import { Intercambio } from '../entities/exchange.entity';
 import { Libro } from '../entities/book.entity';
 import { CreateChatDto, SendMessageDto, ChatPreviewDto, MessageDto } from './chat.dto';
+import { NotificationService } from '../notifications/notification.service'; // ✅ Ruta corregida
 
 @Injectable()
 export class ChatService {
@@ -22,16 +23,11 @@ export class ChatService {
     private intercambioRepository: Repository<Intercambio>,
     @InjectRepository(Libro)
     private libroRepository: Repository<Libro>,
+    private notificationService: NotificationService,
   ) {}
 
-  /**
-   * Obtener todos los chats de un usuario con preview
-   * OPTIMIZADO: Resuelve problema N+1 usando un solo query con JOINs
-   */
   async getUserChats(userId: number): Promise<ChatPreviewDto[]> {
     console.log(`[OPTIMIZADO] Obteniendo chats para usuario ${userId}`);
-    
-    // Query única con todos los JOINs necesarios (usando nombres de tabla directamente)
     const chatsWithData = await this.chatUsuarioRepository
       .createQueryBuilder('cu')
       .innerJoin('chat_usuario', 'cu_other', 'cu_other.id_chat = cu.id_chat AND cu_other.id_usuario != :userId', { userId })
@@ -76,7 +72,7 @@ export class ChatService {
       timestamp: new Date(row.timestamp).toISOString(),
     }));
   }
-
+  
 
   async getChatMessages(chatId: number, userId: number, limit = 200): Promise<MessageDto[]> {
     // Verificar que el usuario pertenece al chat
@@ -110,8 +106,9 @@ export class ChatService {
   }
 
 
+  // ✅ ÚNICA VERSIÓN DE SEND MESSAGE (CON NOTIFICACIONES)
   async sendMessage(userId: number, dto: SendMessageDto): Promise<MessageDto> {
-    // Verificar que el usuario pertenece al chat
+    // 1. Verificar membresía
     const isMember = await this.chatUsuarioRepository.findOne({
       where: { id_chat: dto.id_chat, id_usuario: userId },
     });
@@ -120,7 +117,7 @@ export class ChatService {
       throw new BadRequestException('No tienes acceso a este chat');
     }
 
-    // Crear el mensaje
+    // 2. Guardar el mensaje
     const mensaje = this.mensajeRepository.create({
       id_chat: dto.id_chat,
       id_usuario_emisor: userId,
@@ -129,7 +126,30 @@ export class ChatService {
 
     const savedMessage = await this.mensajeRepository.save(mensaje);
 
-    // Obtener el mensaje completo con relaciones
+    // 3. Lógica de Notificación Push (NUEVO)
+    try {
+      const chatParticipants = await this.chatUsuarioRepository.find({
+        where: { id_chat: dto.id_chat },
+        relations: ['usuario'],
+      });
+
+      const receptor = chatParticipants.find(p => p.id_usuario !== userId)?.usuario;
+const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userId } });
+      if (receptor && receptor.push_token) {
+        const nombreMostrar = emisor?.nombre_usuario || 'Usuario Bookify'; 
+
+        await this.notificationService.sendPushNotification(
+          receptor.push_token,
+          `Mensaje de ${nombreMostrar}`, 
+          dto.contenido_texto,
+          { chatId: dto.id_chat, type: 'chat_message' }
+        );
+      }
+    } catch (error) {
+      console.error('Error enviando push notification:', error);
+    }
+
+    // 4. Devolver el mensaje recién creado
     const fullMessage = await this.mensajeRepository.findOne({
       where: { id_mensaje: savedMessage.id_mensaje },
       relations: ['emisor'],

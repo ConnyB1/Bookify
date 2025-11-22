@@ -3,93 +3,90 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notificacion } from '../entities/notification.entity';
 import { NotificationDto } from './notification.dto';
+import { Expo } from 'expo-server-sdk';
 
 @Injectable()
 export class NotificationService {
+  private expo = new Expo();
+
   constructor(
     @InjectRepository(Notificacion)
     private notificacionRepository: Repository<Notificacion>,
   ) {}
 
-  /**
-   * Obtener notificaciones de un usuario
-   */
+  async sendPushNotification(toToken: string, title: string, body: string, data: any = {}) {
+    if (!Expo.isExpoPushToken(toToken)) {
+      console.error(`Push token ${toToken} no es un token válido de Expo`);
+      return;
+    }
+
+    const messages = [{
+      to: toToken,
+      sound: 'default' as const, 
+      title: title,
+      body: body,
+      data: data,
+    }];
+
+    try {
+      const chunks = this.expo.chunkPushNotifications(messages);
+      for (const chunk of chunks) {
+        await this.expo.sendPushNotificationsAsync(chunk);
+      }
+      console.log('🔔 Notificación enviada a', toToken);
+    } catch (error) {
+      console.error('Error enviando push notification:', error);
+    }
+  }
+
+  // ... (Mantén aquí tus otros métodos: getUserNotifications, markAsRead, etc.)
+  // Puedes copiar y pegar tus métodos anteriores aquí abajo 👇
+  
   async getUserNotifications(userId: number, onlyUnread = false): Promise<NotificationDto[]> {
     const where: any = { id_usuario_receptor: userId };
-    
-    if (onlyUnread) {
-      where.leida = false;
-    }
+    if (onlyUnread) where.leida = false;
 
     const notificaciones = await this.notificacionRepository.find({
       where,
       relations: ['usuario_emisor', 'intercambio'],
       order: { fecha_creacion: 'DESC' },
-      take: 50, // Limitar a las 50 más recientes
+      take: 50,
     });
-
     return notificaciones.map(n => this.formatNotification(n));
   }
 
-  /**
-   * Marcar notificación como leída
-   */
   async markAsRead(notificationId: number, userId: number): Promise<NotificationDto> {
     const notificacion = await this.notificacionRepository.findOne({
       where: { id_notificacion: notificationId, id_usuario_receptor: userId },
       relations: ['usuario_emisor', 'intercambio'],
     });
-
-    if (!notificacion) {
-      throw new Error('Notificación no encontrada');
-    }
-
+    if (!notificacion) throw new Error('Notificación no encontrada');
     notificacion.leida = true;
-    const updated = await this.notificacionRepository.save(notificacion);
-
-    return this.formatNotification(updated);
+    return this.formatNotification(await this.notificacionRepository.save(notificacion));
   }
 
-  /**
-   * Marcar todas como leídas
-   */
   async markAllAsRead(userId: number): Promise<{ count: number }> {
     const result = await this.notificacionRepository.update(
       { id_usuario_receptor: userId, leida: false },
       { leida: true },
     );
-
     return { count: result.affected || 0 };
   }
 
-  /**
-   * Obtener contador de no leídas
-   */
   async getUnreadCount(userId: number): Promise<number> {
     return this.notificacionRepository.count({
       where: { id_usuario_receptor: userId, leida: false },
     });
   }
 
-  /**
-   * Eliminar una notificación específica
-   */
   async deleteNotification(notificationId: number, userId: number): Promise<void> {
     const notificacion = await this.notificacionRepository.findOne({
       where: { id_notificacion: notificationId, id_usuario_receptor: userId },
     });
-
-    if (!notificacion) {
-      throw new Error('Notificación no encontrada o no tienes permiso para eliminarla');
-    }
-
+    if (!notificacion) throw new Error('No encontrada');
     await this.notificacionRepository.remove(notificacion);
-    console.log(`🗑️ Notificación ${notificationId} eliminada por usuario ${userId}`);
   }
 
-  /**
-   * Formatear notificación
-   */
   private formatNotification(notificacion: Notificacion): NotificationDto {
     return {
       id_notificacion: notificacion.id_notificacion,

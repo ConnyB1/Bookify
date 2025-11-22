@@ -6,12 +6,16 @@ import { Chat, ChatUsuario, Mensaje } from './chat.entity';
 import { Usuario } from '../entities/user.entity';
 import { Intercambio } from '../entities/exchange.entity';
 import { Libro } from '../entities/book.entity';
-import { AuthModule } from '../auth/auth.module'; // Importar AuthModule
+import { AuthModule } from '../auth/auth.module';
+// 👇 1. Importar el módulo de notificaciones
+import { NotificationModule } from '../notifications/notification.module'; 
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Chat, ChatUsuario, Mensaje, Usuario, Intercambio, Libro]),
-    AuthModule, // Importar para tener acceso al JwtAuthGuard
+    AuthModule,
+    // 👇 2. Agregarlo al arreglo de imports
+    NotificationModule, 
   ],
   controllers: [ChatController],
   providers: [ChatService],

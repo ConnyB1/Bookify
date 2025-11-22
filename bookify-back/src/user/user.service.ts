@@ -9,6 +9,12 @@ export class UserService {
     @InjectRepository(Usuario)
     private userRepository: Repository<Usuario>,
   ) {}
+  async updatePushToken(userId: number, token: string): Promise<void> {
+    await this.userRepository.update(
+      { id_usuario: userId }, 
+      { push_token: token }   
+    );
+  }
 
   async getUserProfile(userId: number) {
     const user = await this.userRepository.findOne({

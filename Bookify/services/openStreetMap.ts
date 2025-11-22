@@ -36,7 +36,7 @@ export const SAFE_MEETING_PLACE_TYPES = [
   { type: 'university', label: 'Universidades', icon: 'school' },
 ];
 
-// Calcular distancia (Haversine)
+// Calcular distancia 
 const calcDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371e3;
   const φ1 = (lat1 * Math.PI) / 180;

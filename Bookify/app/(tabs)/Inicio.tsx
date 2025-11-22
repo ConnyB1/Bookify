@@ -207,7 +207,7 @@ export default function InicioScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#151718', // dark.background
+    backgroundColor: '#151718', 
   },
   container: {
     flex: 1,

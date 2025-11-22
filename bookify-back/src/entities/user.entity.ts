@@ -41,6 +41,9 @@ export class Usuario {
   @Column({ name: 'ubicacion_actualizada_at', type: 'timestamptz', nullable: true })
   ubicacion_actualizada_at: Date | null;
 
+  @Column({ name: 'push_token', nullable: true, type: 'text' })
+  push_token: string | null;
+
   // ✅ Relación con los libros que posee el usuario
   @OneToMany(() => Libro, (libro) => libro.propietario)
   libros: Libro[];
