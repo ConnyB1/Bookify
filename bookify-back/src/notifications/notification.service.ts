@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notificacion } from '../entities/notification.entity';
+import { Usuario } from '../entities/user.entity';
 import { NotificationDto } from './notification.dto';
 import { Expo } from 'expo-server-sdk';
 
@@ -12,11 +13,18 @@ export class NotificationService {
   constructor(
     @InjectRepository(Notificacion)
     private notificacionRepository: Repository<Notificacion>,
+    @InjectRepository(Usuario)
+    private userRepository: Repository<Usuario>,
   ) {}
 
   async sendPushNotification(toToken: string, title: string, body: string, data: any = {}) {
+    console.log('🚀 [NotificationService] Enviando push notification...');
+    console.log('   - Token:', toToken.substring(0, 30) + '...');
+    console.log('   - Title:', title);
+    console.log('   - Body:', body);
+    
     if (!Expo.isExpoPushToken(toToken)) {
-      console.error(`Push token ${toToken} no es un token válido de Expo`);
+      console.error(`❌ Push token ${toToken} no es un token válido de Expo`);
       return;
     }
 
@@ -30,12 +38,17 @@ export class NotificationService {
 
     try {
       const chunks = this.expo.chunkPushNotifications(messages);
+      console.log(`   - Enviando ${chunks.length} chunk(s)...`);
+      
       for (const chunk of chunks) {
-        await this.expo.sendPushNotificationsAsync(chunk);
+        const ticketChunk = await this.expo.sendPushNotificationsAsync(chunk);
+        console.log('   - Tickets recibidos:', JSON.stringify(ticketChunk));
       }
-      console.log('🔔 Notificación enviada a', toToken);
+      
+      console.log('✅ Notificación enviada exitosamente a', toToken.substring(0, 30) + '...');
     } catch (error) {
-      console.error('Error enviando push notification:', error);
+      console.error('❌ Error enviando push notification:', error);
+      throw error;
     }
   }
 
@@ -85,6 +98,47 @@ export class NotificationService {
     });
     if (!notificacion) throw new Error('No encontrada');
     await this.notificacionRepository.remove(notificacion);
+  }
+
+  async testPushNotification(userId: number): Promise<{ success: boolean; message: string; token?: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id_usuario: userId },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: 'Usuario no encontrado',
+      };
+    }
+
+    if (!user.push_token) {
+      return {
+        success: false,
+        message: 'Usuario no tiene push_token registrado. El usuario debe iniciar sesión para registrar su token.',
+      };
+    }
+
+    try {
+      await this.sendPushNotification(
+        user.push_token,
+        '🧪 Notificación de Prueba',
+        'Esta es una notificación de prueba desde Bookify',
+        { type: 'test', timestamp: new Date().toISOString() }
+      );
+
+      return {
+        success: true,
+        message: 'Notificación de prueba enviada exitosamente',
+        token: user.push_token.substring(0, 30) + '...',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Error al enviar notificación: ${error.message}`,
+        token: user.push_token.substring(0, 30) + '...',
+      };
+    }
   }
 
   private formatNotification(notificacion: Notificacion): NotificationDto {

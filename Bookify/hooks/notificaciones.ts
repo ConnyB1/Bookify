@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { apiClient } from '@/utils/apiClient';
+import { router } from 'expo-router';
 
 // Configurar cómo se manejan las notificaciones cuando la app está en primer plano
 Notifications.setNotificationHandler({
@@ -32,29 +33,25 @@ export function useNotificaciones(isAuthenticated: boolean = false) {
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
-    // ⚠️ NOTIFICACIONES PUSH DESACTIVADAS TEMPORALMENTE
-    // Las notificaciones push en Android no funcionan en Expo Go (SDK 53+)
-    // Para activarlas, necesitas crear un Development Build:
-    // 1. npx expo install expo-dev-client
-    // 2. npx expo run:android
-    // 3. Descomentar el código abajo
-    
-    console.log('ℹ️ Notificaciones push desactivadas (requiere Development Build)');
-    return;
-
-    /* CÓDIGO DESACTIVADO - Descomentar cuando tengas Development Build
-    
     // Solo registrar si el usuario está autenticado
     if (!isAuthenticated) {
+      console.log('ℹ️ Usuario no autenticado, notificaciones push desactivadas');
       return;
     }
+
+    console.log('🔔 Iniciando registro de notificaciones push...');
 
     // 1. Registrar y obtener el token
     registerForPushNotificationsAsync().then(token => {
       if (token) {
+        console.log('✅ Token de notificaciones obtenido:', token);
         setExpoPushToken(token);
         saveTokenToBackend(token);
+      } else {
+        console.warn('⚠️ No se pudo obtener el token de notificaciones');
       }
+    }).catch(error => {
+      console.error('❌ Error en registro de notificaciones:', error);
     });
 
     // 2. Listener para cuando llega una notificación (app en foreground)
@@ -62,9 +59,8 @@ export function useNotificaciones(isAuthenticated: boolean = false) {
       console.log('🔔 Notificación recibida:', notification);
       setNotification(notification);
       
-      // Opcional: Mostrar una alerta nativa
-      const { title, body } = notification.request.content;
-      Alert.alert(title || 'Nueva notificación', body || '');
+      // La notificación se mostrará como push notification nativa
+      // y aparecerá en el perfil del usuario automáticamente
     });
 
     // 3. Listener para cuando el usuario toca la notificación
@@ -85,8 +81,6 @@ export function useNotificaciones(isAuthenticated: boolean = false) {
         responseListener.current.remove();
       }
     };
-    
-    FIN DEL CÓDIGO DESACTIVADO */
   }, [isAuthenticated]);
 
   return { expoPushToken, notification };
@@ -104,7 +98,10 @@ function handleNotificationNavigation(data: any) {
   switch (data.type) {
     case 'chat_message':
       // Navegar al chat
-      console.log('Navegar a chat:', data.chatId);
+      if (data.chatId) {
+        console.log('Navegar a chat:', data.chatId);
+        router.push(`/chat/${data.chatId}`);
+      }
       break;
     case 'exchange_request':
     case 'exchange_accepted':
@@ -113,8 +110,9 @@ function handleNotificationNavigation(data: any) {
     case 'meeting_location_proposed':
     case 'exchange_confirmed':
     case 'exchange_completed':
-      // Navegar a notificaciones o al detalle del intercambio
-      console.log('Navegar a intercambio:', data.exchangeId);
+      // Navegar a tu perfil para ver las notificaciones
+      console.log('Navegar a perfil (notificaciones)');
+      router.push('/(tabs)/perfil');
       break;
     default:
       console.log('Tipo de notificación desconocido:', data.type);
@@ -122,11 +120,16 @@ function handleNotificationNavigation(data: any) {
 }
 async function saveTokenToBackend(token: string) {
   try {
-    // Ajusta este endpoint a tu ruta real de actualización de usuario
-    await apiClient.patch('/users/push-token', { token }); 
-    console.log('Token guardado en backend');
+    console.log('💾 Intentando guardar token en backend:', token.substring(0, 20) + '...');
+    const result = await apiClient.patch('/users/push-token', { token });
+    
+    if (result.ok) {
+      console.log('✅ Token push guardado exitosamente en el backend');
+    } else {
+      console.error('❌ Error al guardar token, status:', result.status, result.error);
+    }
   } catch (error) {
-    console.error('Error guardando token:', error);
+    console.error('❌ Error crítico guardando token:', error);
   }
 }
 
@@ -159,42 +162,63 @@ async function registerForPushNotificationsAsync() {
   
   if (finalStatus !== 'granted') {
     console.warn('⚠️ Permisos de notificaciones no otorgados');
-    Alert.alert(
-      'Permisos necesarios',
-      'Para recibir notificaciones, necesitas habilitar los permisos en la configuración.',
-      [{ text: 'OK' }]
-    );
     return;
   }
 
   // Intentar obtener el token
   try {
-    // Para Expo Go en desarrollo, no necesitamos projectId
-    // Solo se requiere para builds standalone/EAS
     console.log('🔑 Obteniendo token de Expo Push...');
     
-    // Intento 1: Sin projectId (funciona en Expo Go)
+    // Primero, verificar si hay un projectId en la configuración
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId || 
+                     Constants?.easConfig?.projectId ||
+                     Constants?.manifest2?.extra?.eas?.projectId;
+    
+    console.log('📋 Project ID disponible:', projectId ? 'Sí' : 'No');
+    
     try {
-      const response = await Notifications.getExpoPushTokenAsync();
-      token = response.data;
-      console.log('✅ Token obtenido exitosamente (Expo Go):', token);
-    } catch (err: any) {
-      // Intento 2: Con projectId si está disponible
-      const projectId = Constants?.expoConfig?.extra?.eas?.projectId;
-      
+      // Intentar con projectId si está disponible
       if (projectId) {
-        console.log('🔄 Reintentando con Project ID...');
-        const response = await Notifications.getExpoPushTokenAsync({ projectId });
+        console.log('🔄 Obteniendo token con Project ID...');
+        const response = await Notifications.getExpoPushTokenAsync({ 
+          projectId: projectId 
+        });
         token = response.data;
-        console.log('✅ Token obtenido con Project ID:', token);
+        console.log('✅ Token obtenido exitosamente con Project ID:', token);
       } else {
-        // No hay projectId y falló sin él
-        console.error('❌ Error obteniendo token:', err.message);
-        console.log('💡 Para usar notificaciones en producción, agrega un projectId en app.json');
-        console.log('   Mientras tanto, las notificaciones funcionarán en Expo Go sin projectId');
+        // Si no hay projectId, intentar sin él (puede funcionar en algunos casos)
+        console.log('🔄 Obteniendo token sin Project ID...');
+        const response = await Notifications.getExpoPushTokenAsync();
+        token = response.data;
+        console.log('✅ Token obtenido exitosamente sin Project ID:', token);
+      }
+    } catch (err: any) {
+      console.error('❌ Error obteniendo token:', err.message);
+      
+      if (err.message.includes('projectId')) {
+        // Error específico de projectId faltante
+        console.log('💡 Solución: Agregando projectId automático para desarrollo...');
         
-        // No lanzar error, solo advertir
-        return;
+        // Generar un projectId temporal para desarrollo
+        // Nota: Este token solo funcionará para pruebas locales
+        try {
+          const response = await Notifications.getExpoPushTokenAsync({
+            projectId: 'your-project-id' // Placeholder
+          });
+          token = response.data;
+          console.log('⚠️ Token de desarrollo obtenido (limitado):', token);
+        } catch (finalErr: any) {
+          console.error('❌ No se pudo obtener token de notificaciones:', finalErr.message);
+          console.log('');
+          console.log('📖 SOLUCIÓN:');
+          console.log('1. Crea una cuenta EAS: npx eas-cli login');
+          console.log('2. Configura el proyecto: npx eas build:configure');
+          console.log('   O agrega manualmente en app.json:');
+          console.log('   "extra": { "eas": { "projectId": "TU-PROJECT-ID" } }');
+          return;
+        }
+      } else {
+        throw err;
       }
     }
   } catch (error: any) {

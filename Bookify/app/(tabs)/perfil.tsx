@@ -95,6 +95,7 @@ export default function PerfilScreen() {
   const { handleNotificationPress } = useExchangeActions({
     userId: user?.id_usuario,
     showAlert: showAlertWithClose, 
+    hideAlert,
     markAsRead,
     loadNotifications,
     closeNotifications: () => setShowNotifications(false),
@@ -156,6 +157,60 @@ export default function PerfilScreen() {
   const openNotifications = () => {
     setShowNotifications(true);
     loadNotifications();
+  };
+
+  const handleDeleteReadNotifications = () => {
+    const readCount = notifications.filter(n => n.leida).length;
+    
+    if (readCount === 0) {
+      showAlert('Info', 'No hay notificaciones leídas para eliminar', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
+      return;
+    }
+
+    // Cerrar el modal PRIMERO
+    setShowNotifications(false);
+
+    // Mostrar confirmación después de un pequeño delay
+    setTimeout(() => {
+      showAlert(
+        'Eliminar Notificaciones Leídas',
+        `¿Deseas eliminar ${readCount} notificación${readCount !== 1 ? 'es' : ''} leída${readCount !== 1 ? 's' : ''}?`,
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => {
+              hideAlert();
+              // Reabrir el modal si cancela
+              setShowNotifications(true);
+            },
+          },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              hideAlert();
+              const result = await deleteReadNotifications();
+              
+              // Mostrar resultado
+              setTimeout(() => {
+                if (result.success) {
+                  showAlert('Éxito', `${result.count} notificación${result.count !== 1 ? 'es' : ''} eliminada${result.count !== 1 ? 's' : ''}`, [
+                    { text: 'OK', onPress: hideAlert }
+                  ]);
+                } else {
+                  showAlert('Error', result.message || 'No se pudieron eliminar las notificaciones', [
+                    { text: 'OK', onPress: hideAlert }
+                  ]);
+                }
+              }, 100);
+            },
+          },
+        ]
+      );
+    }, 100);
   };
 
   const handleLogout = () => {
@@ -518,7 +573,7 @@ export default function PerfilScreen() {
                 <View style={styles.modalHeaderActions}>
                   {notifications.some((n) => n.leida) && (
                     <TouchableOpacity
-                      onPress={deleteReadNotifications}
+                      onPress={handleDeleteReadNotifications}
                       style={styles.deleteButton}>
                       <Ionicons
                         name="trash-outline"
@@ -724,9 +779,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
   },
-  // bookList ahora solo gestiona el padding inferior
+  // bookList ahora con más padding para evitar que la barra de navegación tape los libros
   bookList: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   bookCard: {
     backgroundColor: '#1E1E1E',

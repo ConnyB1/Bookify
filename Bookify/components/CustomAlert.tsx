@@ -72,6 +72,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
       visible={visible}
       transparent={true}
       animationType="fade"
+      statusBarTranslucent={true}
       onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
@@ -97,12 +98,6 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
               } else {
                 buttonStyle.push(styles.buttonDefault);
                 textStyle.push(styles.buttonTextDefault);
-              }
-              
-              // Hacer los botones de cancelar más pequeños si hay más de 2 botones
-              if (button.style === 'cancel' && buttons.length > 2) {
-                 buttonStyle.push(styles.buttonCancelSmall);
-                 textStyle.push(styles.buttonTextCancelSmall);
               }
 
               return (
@@ -195,21 +190,14 @@ const styles = StyleSheet.create({
   buttonTextDestructive: {
     color: '#ff4444',
   },
-  // Botón de cancelar (Gris)
+  // Botón de cancelar (Gris con fondo)
   buttonCancel: {
-    backgroundColor: 'transparent',
+    backgroundColor: '#333333',
+    borderWidth: 1,
+    borderColor: '#555555',
   },
   buttonTextCancel: {
-    color: '#999',
-  },
-  // Estilo más pequeño para cancelar cuando hay 3 opciones
-  buttonCancelSmall: {
-    paddingVertical: 10,
-    marginTop: 4,
-  },
-  buttonTextCancelSmall: {
-    color: '#888',
-    fontSize: 14,
+    color: '#CCCCCC',
   }
 });
 

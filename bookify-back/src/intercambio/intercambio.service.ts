@@ -28,7 +28,7 @@ export class ExchangeService {
    * Crear solicitud de intercambio
    */
   async createExchangeRequest(dto: CreateExchangeDto): Promise<ExchangeResponseDto> {
-    // Verificar que el libro existe
+    // Verificar que el libro existe y cargar el propietario con su push_token
     const libro = await this.libroRepository.findOne({
       where: { id_libro: dto.id_libro_solicitado },
       relations: ['propietario'],
@@ -72,7 +72,12 @@ export class ExchangeService {
 
     // 🔔 Enviar push notification
     try {
+      console.log('📱 Intentando enviar notificación push...');
+      console.log('   - Propietario:', libro.propietario.nombre_usuario);
+      console.log('   - Push token disponible:', !!libro.propietario.push_token);
+      
       if (libro.propietario.push_token) {
+        console.log('   - Token:', libro.propietario.push_token.substring(0, 30) + '...');
         await this.notificationService.sendPushNotification(
           libro.propietario.push_token,
           '📚 Nueva solicitud de intercambio',
@@ -80,12 +85,17 @@ export class ExchangeService {
           { 
             type: 'exchange_request', 
             exchangeId: savedIntercambio.id_intercambio,
-            bookTitle: libro.titulo
+            bookTitle: libro.titulo,
+            senderId: dto.id_usuario_solicitante,
+            senderName: solicitante?.nombre_usuario || 'Un usuario'
           }
         );
+        console.log('✅ Notificación push enviada exitosamente');
+      } else {
+        console.warn('⚠️ Usuario no tiene push_token registrado, notificación no enviada');
       }
     } catch (error) {
-      console.error('Error enviando push notification:', error);
+      console.error('❌ Error enviando push notification:', error);
     }
 
     // Retornar respuesta formateada

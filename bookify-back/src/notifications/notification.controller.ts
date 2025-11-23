@@ -108,4 +108,25 @@ export class NotificationController {
       message: 'Notificación eliminada correctamente',
     };
   }
+
+  /**
+   * Endpoint de prueba para enviar notificación push
+   * GET /api/notifications/test-push?userId=123
+   */
+  @Get('test-push')
+  async testPushNotification(@Query('userId') userId: string): Promise<{
+    success: boolean;
+    message: string;
+    token?: string;
+  }> {
+    try {
+      const result = await this.notificationService.testPushNotification(Number(userId));
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Error al enviar notificación de prueba',
+      };
+    }
+  }
 }

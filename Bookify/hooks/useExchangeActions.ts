@@ -6,6 +6,7 @@ import { Notification } from './useNotifications';
 interface UseExchangeActionsProps {
   userId: number | undefined;
   showAlert: (title: string, message: string, buttons: any[]) => void;
+  hideAlert: () => void;
   markAsRead: (notification: Notification) => Promise<void>;
   loadNotifications: () => Promise<void>;
   closeNotifications: () => void;
@@ -14,6 +15,7 @@ interface UseExchangeActionsProps {
 export function useExchangeActions({
   userId,
   showAlert,
+  hideAlert,
   markAsRead,
   loadNotifications,
   closeNotifications,
@@ -21,10 +23,20 @@ export function useExchangeActions({
   const router = useRouter();
 
   const handleNotificationPress = useCallback(async (notification: Notification) => {
-    // Si es una solicitud de intercambio, mostrar opciones
+   
+    markAsRead(notification);
+    
+    
     if (notification.tipo === 'solicitud_intercambio' && notification.intercambio) {
-      showExchangeOptions(notification);
+     
+      closeNotifications();
+      setTimeout(() => {
+        showExchangeOptions(notification);
+      }, 100);
     } else if (notification.tipo === 'intercambio_aceptado' && notification.intercambio) {
+      
+      closeNotifications();
+      
       // Obtener el ID del chat asociado al intercambio
       try {
         const response = await fetch(
@@ -33,42 +45,50 @@ export function useExchangeActions({
         const result = await response.json();
 
         if (result.success && result.data?.id_chat) {
-          closeNotifications();
-          markAsRead(notification);
-
           const otherUserName = notification.usuario_emisor?.nombre_usuario || 'Usuario';
 
-          showAlert(
-            '¡Solicitud Aceptada! 🎉',
-            `${otherUserName} ha aceptado tu solicitud de intercambio. Ya puedes conversar.`,
-            [
-              {
-                text: 'Ir al Chat',
-                onPress: () => {
-                  router.push(`/chat/${result.data.id_chat}?userName=${encodeURIComponent(otherUserName)}`);
+          setTimeout(() => {
+            showAlert(
+              '¡Solicitud Aceptada! 🎉',
+              `${otherUserName} ha aceptado tu solicitud de intercambio. Ya puedes conversar.`,
+              [
+                {
+                  text: 'Ir al Chat',
+                  onPress: () => {
+                    hideAlert();
+                    setTimeout(() => {
+                      router.push(`/chat/${result.data.id_chat}?userName=${encodeURIComponent(otherUserName)}`);
+                    }, 100);
+                  },
                 },
-              },
-              {
-                text: 'Después',
-                style: 'cancel',
-              },
-            ]
-          );
+                {
+                  text: 'Después',
+                  style: 'cancel',
+                  onPress: () => {
+                    hideAlert();
+                  },
+                },
+              ]
+            );
+          }, 100);
         } else {
-          showAlert('Info', 'El chat aún no está disponible para este intercambio', [
-            { text: 'OK' }
-          ]);
-          markAsRead(notification);
+          setTimeout(() => {
+            showAlert('Info', 'El chat aún no está disponible para este intercambio', [
+              { text: 'OK' }
+            ]);
+          }, 100);
         }
       } catch (error) {
         console.error('Error loading chat:', error);
-        showAlert('Error', 'No se pudo abrir el chat', [
-          { text: 'OK' }
-        ]);
+        setTimeout(() => {
+          showAlert('Error', 'No se pudo abrir el chat', [
+            { text: 'OK' }
+          ]);
+        }, 100);
       }
     } else {
-      // Para otros tipos, solo marcar como leída
-      markAsRead(notification);
+      
+      closeNotifications();
     }
   }, [showAlert, markAsRead, closeNotifications, router]);
 
@@ -84,22 +104,29 @@ export function useExchangeActions({
       `${senderName} quiere intercambiar un libro contigo`,
       [
         {
+          text: 'Aceptar',
+          onPress: () => handleExchangeResponse(exchangeId, 'accepted', notification),
+        },
+        {
           text: 'Ver Perfil',
           onPress: () => {
+            hideAlert();
             closeNotifications();
-            showAlert('Perfil', `Ver perfil de ${senderName} (ID: ${senderId})\n\nPróximamente disponible`, [
-              { text: 'OK' }
-            ]);
+            // Navegar al perfil del usuario que envió la solicitud
+            router.push(`/perfil/${senderId}`);
+          },
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: () => {
+            hideAlert();
           },
         },
         {
           text: 'Rechazar',
           style: 'destructive',
           onPress: () => handleExchangeResponse(exchangeId, 'rejected', notification),
-        },
-        {
-          text: 'Aceptar',
-          onPress: () => handleExchangeResponse(exchangeId, 'accepted', notification),
         },
       ]
     );
@@ -142,13 +169,19 @@ export function useExchangeActions({
               {
                 text: 'Ir al Chat',
                 onPress: () => {
-                  const otherUserName = notification.usuario_emisor?.nombre_usuario || 'Usuario';
-                  router.push(`/chat/${result.data.id_chat}?userName=${encodeURIComponent(otherUserName)}`);
+                  hideAlert();
+                  setTimeout(() => {
+                    const otherUserName = notification.usuario_emisor?.nombre_usuario || 'Usuario';
+                    router.push(`/chat/${result.data.id_chat}?userName=${encodeURIComponent(otherUserName)}`);
+                  }, 100);
                 },
               },
               {
                 text: 'Después',
                 style: 'cancel',
+                onPress: () => {
+                  hideAlert();
+                },
               },
             ]
           );

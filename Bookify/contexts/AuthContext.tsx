@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getUserData, getTokens, saveUserData, saveTokens, logout as logoutUtil, UserData, UserTokens } from '../utils/auth';
 import { API_CONFIG, buildApiUrl } from '../config/api';
+import { useNotificaciones } from '../hooks/notificaciones';
 
 interface AuthContextType {
   user: UserData | null;
@@ -19,6 +20,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserData | null>(null);
   const [tokens, setTokens] = useState<UserTokens | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // 🔔 Activar notificaciones push cuando el usuario está autenticado
+  const isAuthenticated = !!user && !!tokens;
+  const { expoPushToken } = useNotificaciones(isAuthenticated);
 
   // Verificar sesión al iniciar la app
   useEffect(() => {

@@ -8,6 +8,7 @@
     "scheme": "bookify",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "owner": "emasol",
     "ios": {
       "supportsTablet": true
     },
@@ -20,7 +21,11 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.Bookify"
+      "package": "com.anonymous.Bookify",
+      "permissions": [
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
     },
     "web": {
       "output": "static",
@@ -39,11 +44,29 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#d500ff",
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ],
+          "androidMode": "default",
+          "androidCollapsedTitle": "#{unread_notifications} nuevas notificaciones"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ceb5d200-46f5-4cff-9f64-09f6ee48f25a"
+      }
     }
   }
 }

@@ -24,7 +24,7 @@ interface UseNotificationsReturn {
   loadNotifications: () => Promise<void>;
   loadUnreadCount: () => Promise<void>;
   markAsRead: (notification: Notification) => Promise<void>;
-  deleteReadNotifications: () => Promise<void>;
+  deleteReadNotifications: () => Promise<{ success: boolean; count?: number; message?: string }>;
 }
 
 export function useNotifications(
@@ -106,58 +106,37 @@ export function useNotifications(
     }
   }, [userId]);
 
-  const deleteReadNotifications = useCallback(async () => {
-    if (!userId) return;
+  const deleteReadNotifications = useCallback(async (): Promise<{ success: boolean; count?: number; message?: string }> => {
+    if (!userId) {
+      return { success: false, message: 'Usuario no disponible' };
+    }
+
+    const readNotifications = notifications.filter(n => n.leida);
+
+    if (readNotifications.length === 0) {
+      return { success: false, message: 'No hay notificaciones leídas para eliminar' };
+    }
 
     try {
-      const readNotifications = notifications.filter(n => n.leida);
-
-      if (readNotifications.length === 0) {
-        showAlert('Info', 'No hay notificaciones leídas para eliminar', [
-          { text: 'OK' }
-        ]);
-        return;
-      }
-
-      showAlert(
-        'Eliminar Notificaciones Leídas',
-        `¿Deseas eliminar ${readNotifications.length} notificación${readNotifications.length !== 1 ? 'es' : ''} leída${readNotifications.length !== 1 ? 's' : ''}?`,
-        [
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-          },
-          {
-            text: 'Eliminar',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                for (const notification of readNotifications) {
-                  await fetch(
-                    buildApiUrl(`/api/notifications/${notification.id_notificacion}?userId=${userId}`),
-                    { method: 'DELETE' }
-                  );
-                }
-
-                setNotifications(prev => prev.filter(n => !n.leida));
-
-                showAlert('Éxito', 'Notificaciones leídas eliminadas', [
-                  { text: 'OK' }
-                ]);
-              } catch (error) {
-                console.error('Error deleting notifications:', error);
-                showAlert('Error', 'No se pudieron eliminar las notificaciones', [
-                  { text: 'OK' }
-                ]);
-              }
-            },
-          },
-        ]
+      // Eliminar todas las notificaciones leídas
+      const deletePromises = readNotifications.map(notification =>
+        fetch(
+          buildApiUrl(`/api/notifications/${notification.id_notificacion}?userId=${userId}`),
+          { method: 'DELETE' }
+        )
       );
+
+      await Promise.all(deletePromises);
+
+      // Actualizar el estado local
+      setNotifications(prev => prev.filter(n => !n.leida));
+
+      return { success: true, count: readNotifications.length };
     } catch (error) {
-      console.error('Error in deleteReadNotifications:', error);
+      console.error('Error deleting notifications:', error);
+      return { success: false, message: 'No se pudieron eliminar las notificaciones' };
     }
-  }, [userId, notifications, showAlert]);
+  }, [userId, notifications]);
 
   return {
     notifications,
