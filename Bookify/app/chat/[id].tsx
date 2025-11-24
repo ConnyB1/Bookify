@@ -184,6 +184,7 @@ export default function ChatRoomScreen() {
         {/* Mostrar información del intercambio si existe */}
         {exchange && !exchangeLoading && showExchangeCard && (
           <ExchangeBookCard
+            key={`exchange-${exchange.id_intercambio}`}
             exchange={exchange}
             canSelectBook={canSelectBook}
             onSelectBook={handleSelectBook}

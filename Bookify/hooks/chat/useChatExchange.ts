@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { buildApiUrl, API_CONFIG } from '../../config/api';
 
@@ -38,6 +38,7 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
   const [exchange, setExchange] = useState<ExchangeInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [canSelectBook, setCanSelectBook] = useState(false);
+  const lastStatusRef = useRef<string>(''); // Para rastrear el último estado
 
   useEffect(() => {
     if (!chatId || !currentUserId) {
@@ -46,9 +47,10 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
     }
     
     loadExchangeInfo();
+    // Polling cada 5 segundos para actualizaciones más rápidas
     const interval = setInterval(() => {
       loadExchangeInfoSilent();
-    }, 15000);
+    }, 5000);
     
     return () => clearInterval(interval);
   }, [chatId, currentUserId]);
@@ -92,28 +94,24 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
       const data = await response.json();
       
       if (data.success && data.data) {
-        setExchange((prevExchange) => {
-          if (!prevExchange) {
-            loadExchangeInfo();
-            return prevExchange;
-          }
-          
-          const hasChanges = 
-            prevExchange.confirmacion_solicitante !== data.data.confirmacion_solicitante ||
-            prevExchange.confirmacion_receptor !== data.data.confirmacion_receptor ||
-            prevExchange.ubicacion_encuentro_nombre !== data.data.ubicacion_encuentro_nombre ||
-            prevExchange.ubicacion_encuentro_lat !== data.data.ubicacion_encuentro_lat ||
-            prevExchange.id_libro_ofertado !== data.data.id_libro_ofertado;
-          
-          if (hasChanges) {
-            loadExchangeInfo();
-          }
-          
-          return prevExchange;
+        // Crear un hash del estado actual para comparar
+        const currentStatusHash = JSON.stringify({
+          id_libro_ofertado: data.data.id_libro_ofertado,
+          confirmacion_solicitante: data.data.confirmacion_solicitante,
+          confirmacion_receptor: data.data.confirmacion_receptor,
+          ubicacion_encuentro_nombre: data.data.ubicacion_encuentro_nombre,
+          ubicacion_encuentro_lat: data.data.ubicacion_encuentro_lat,
+          ubicacion_encuentro_lng: data.data.ubicacion_encuentro_lng,
         });
+        
+        // Solo recargar si el hash cambió
+        if (lastStatusRef.current !== currentStatusHash) {
+          lastStatusRef.current = currentStatusHash;
+          loadExchangeInfo();
+        }
       }
     } catch (error) {
-      console.log('[useChatExchange] Error en polling silencioso:', error);
+      // Silenciar error para no spamear la consola
     }
   };
 

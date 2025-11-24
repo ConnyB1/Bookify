@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -15,8 +15,8 @@ interface ExchangeBookCardProps {
   onExchangeUpdate?: () => void;
 }
 
-// Componente de libro reutilizable
-const BookCard = ({ book, label }: { book: any; label: string }) => (
+// Componente de libro reutilizable (memoizado)
+const BookCard = memo(({ book, label }: { book: any; label: string }) => (
   <View style={styles.bookSection}>
     <Text style={styles.label}>{label}</Text>
     <View style={styles.bookCard}>
@@ -31,10 +31,10 @@ const BookCard = ({ book, label }: { book: any; label: string }) => (
       </View>
     </View>
   </View>
-);
+));
 
-// Componente de libro vacío
-const EmptyBookCard = ({ canSelect, onSelect }: { canSelect: boolean; onSelect: () => void }) => (
+// Componente de libro vacío (memoizado)
+const EmptyBookCard = memo(({ canSelect, onSelect }: { canSelect: boolean; onSelect: () => void }) => (
   <View style={styles.bookSection}>
     <Text style={styles.label}>Tu libro a ofrecer</Text>
     <View style={styles.emptyBookCard}>
@@ -51,22 +51,13 @@ const EmptyBookCard = ({ canSelect, onSelect }: { canSelect: boolean; onSelect: 
       )}
     </View>
   </View>
-);
+));
 
-export function ExchangeBookCard({ exchange, canSelectBook, onSelectBook, currentUserId, onExchangeUpdate }: ExchangeBookCardProps) {
+const ExchangeBookCardComponent = ({ exchange, canSelectBook, onSelectBook, currentUserId, onExchangeUpdate }: ExchangeBookCardProps) => {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
   const hasLocation = !!(exchange.ubicacion_encuentro_nombre && exchange.ubicacion_encuentro_lat);
-  
-  // Debug: ver qué datos tiene el exchange
-  console.log('[ExchangeBookCard] Exchange data:', {
-    nombre: exchange.ubicacion_encuentro_nombre,
-    lat: exchange.ubicacion_encuentro_lat,
-    lng: exchange.ubicacion_encuentro_lng,
-    direccion: exchange.ubicacion_encuentro_direccion,
-    hasLocation,
-  });
   
   // Determinar si el usuario actual es el solicitante o receptor
   const isSolicitante = currentUserId === exchange.id_usuario_solicitante;
@@ -333,4 +324,19 @@ const styles = StyleSheet.create({
   waitingBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#252525', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 10, borderWidth: 2, borderColor: '#4CAF50' },
   waitingTitle: { fontSize: 14, fontWeight: '700', color: '#4CAF50', marginBottom: 4 },
   waitingSubtext: { fontSize: 12, color: '#999', lineHeight: 16 },
+});
+
+// Exportar componente memoizado con comparación personalizada
+export const ExchangeBookCard = memo(ExchangeBookCardComponent, (prevProps, nextProps) => {
+  // Solo re-renderizar si cambian estos valores críticos
+  return (
+    prevProps.exchange.id_intercambio === nextProps.exchange.id_intercambio &&
+    prevProps.exchange.id_libro_ofertado === nextProps.exchange.id_libro_ofertado &&
+    prevProps.exchange.confirmacion_solicitante === nextProps.exchange.confirmacion_solicitante &&
+    prevProps.exchange.confirmacion_receptor === nextProps.exchange.confirmacion_receptor &&
+    prevProps.exchange.ubicacion_encuentro_nombre === nextProps.exchange.ubicacion_encuentro_nombre &&
+    prevProps.exchange.ubicacion_encuentro_lat === nextProps.exchange.ubicacion_encuentro_lat &&
+    prevProps.canSelectBook === nextProps.canSelectBook &&
+    prevProps.currentUserId === nextProps.currentUserId
+  );
 });
