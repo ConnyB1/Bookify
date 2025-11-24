@@ -163,7 +163,7 @@ export function useExchangeActions({
           closeNotifications();
 
           showAlert(
-            '¡Intercambio Aceptado! 🎉',
+            '¡Intercambio Aceptado!',
             'El chat se ha creado. Puedes empezar a conversar con el usuario.',
             [
               {

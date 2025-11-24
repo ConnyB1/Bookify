@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import type { ExchangeInfo } from '../../hooks/chat/useChatExchange';
 import { buildApiUrl } from '../../config/api';
+import CustomAlert from '@/components/CustomAlert';
+import { useAlertDialog } from '@/hooks/useAlertDialog';
 
 interface ExchangeBookCardProps {
   exchange: ExchangeInfo;
@@ -54,6 +56,7 @@ const EmptyBookCard = ({ canSelect, onSelect }: { canSelect: boolean; onSelect: 
 export function ExchangeBookCard({ exchange, canSelectBook, onSelectBook, currentUserId, onExchangeUpdate }: ExchangeBookCardProps) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
+  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
   const hasLocation = !!(exchange.ubicacion_encuentro_nombre && exchange.ubicacion_encuentro_lat);
   
   // Debug: ver qué datos tiene el exchange
@@ -82,7 +85,9 @@ export function ExchangeBookCard({ exchange, canSelectBook, onSelectBook, curren
   };
 
   const handleConfirm = async () => {
-    if (!currentUserId) return Alert.alert('Error', 'No se pudo identificar el usuario');
+    if (!currentUserId) return showAlert('Error', 'No se pudo identificar el usuario', [
+      { text: 'OK', onPress: hideAlert }
+    ]);
     if (userConfirmed) return;
     
     try {
@@ -94,15 +99,24 @@ export function ExchangeBookCard({ exchange, canSelectBook, onSelectBook, curren
       
       const data = await response.json();
       if (data.success) {
-        Alert.alert('✅ Confirmado', 'Has confirmado el intercambio');
-        if (onExchangeUpdate) {
-          await onExchangeUpdate();
-        }
+        showAlert('✅ Confirmado', 'Has confirmado el intercambio', [
+          { 
+            text: 'OK', 
+            onPress: async () => {
+              hideAlert();
+              if (onExchangeUpdate) {
+                await onExchangeUpdate();
+              }
+            }
+          }
+        ]);
       } else {
         throw new Error(data.message || 'Error al confirmar');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo confirmar el intercambio');
+      showAlert('Error', error.message || 'No se pudo confirmar el intercambio', [
+        { text: 'OK', onPress: hideAlert }
+      ]);
     } finally {
       setConfirming(false);
     }
@@ -110,6 +124,13 @@ export function ExchangeBookCard({ exchange, canSelectBook, onSelectBook, curren
 
   return (
     <View style={styles.container}>
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
+      />
       {/* Libros */}
       <View style={styles.booksRow}>
         <BookCard book={exchange.libro_solicitado} label="Libro solicitado" />
