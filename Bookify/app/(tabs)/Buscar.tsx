@@ -2,9 +2,9 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import LocationRequiredScreen from '@/components/LocationRequiredScreen';
 import SearchBar from '@/components/SearchBar';
-import GenreSelector from '@/components/Bookify-componentes/GenreSelector';
+import GenreSelectorModal from '@/components/Bookify-componentes/GenreSelectorModal';
 import SearchResults from '@/components/Bookify-componentes/SearchResults';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useBookSearch } from '../../hooks/useBookSearch';
 import { GENRES } from '../../constants/search';
@@ -12,6 +12,7 @@ import Header from '@/components/Bookify-componentes/Encabezadobook';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function BuscarScreen() {
+  const [showGenreModal, setShowGenreModal] = useState(false);
   const {
     searchText,
     setSearchText,
@@ -37,12 +38,8 @@ export default function BuscarScreen() {
             value={searchText}
             onChangeText={setSearchText}
             placeholder="Busca por título, autor..."
-          />
-
-          <GenreSelector
-            genres={GENRES}
-            selectedGenres={selectedGenres}
-            onGenreToggle={toggleGenre}
+            onFilterPress={() => setShowGenreModal(true)}
+            hasActiveFilters={selectedGenres.length > 0}
           />
 
           <SearchResults
@@ -52,6 +49,14 @@ export default function BuscarScreen() {
             selectedGenres={selectedGenres}
           />
         </ThemedView>
+
+        <GenreSelectorModal
+          visible={showGenreModal}
+          genres={GENRES}
+          selectedGenres={selectedGenres}
+          onGenreToggle={toggleGenre}
+          onClose={() => setShowGenreModal(false)}
+        />
       </SafeAreaView>
     </LocationRequiredScreen>
   );

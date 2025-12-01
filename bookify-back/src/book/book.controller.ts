@@ -71,6 +71,26 @@ export class BookController {
     return this.bookService.findByUser(userId);
   }
 
+  @Get('user/:userId/count')
+  async getUserBooksCount(@Param('userId') userId: string): Promise<{ success: boolean; data: { count: number } }> {
+    try {
+      const userIdNumber = parseInt(userId, 10);
+      
+      if (isNaN(userIdNumber)) {
+        throw new BadRequestException('ID de usuario inválido');
+      }
+
+      const count = await this.bookService.countByUser(userIdNumber);
+      
+      return {
+        success: true,
+        data: { count },
+      };
+    } catch (error) {
+      throw new BadRequestException(`Error al obtener conteo de libros: ${error.message}`);
+    }
+  }
+
   @Delete(':id')
   async deleteBook(@Param('id') id: string): Promise<{ success: boolean; message: string }> {
     try {

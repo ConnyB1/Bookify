@@ -11,6 +11,7 @@ interface Book {
   descripcion?: string;
   imagenes?: { id_imagen: number; url_imagen: string; }[];
   generos?: { id_genero: number; nombre: string; }[];
+  distancia_km?: number;
 }
 
 interface SearchResultsProps {
@@ -78,6 +79,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
             title={item.titulo} 
             image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'}
             genres={item.generos?.map(g => g.nombre) || []}
+            distance={item.distancia_km}
             onInfoPress={handleBookInfoPress}
           />
         )}
@@ -86,6 +88,17 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         contentContainerStyle={styles.listContainer}
         columnWrapperStyle={styles.row}
         showsVerticalScrollIndicator={false}
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
+        getItemLayout={(data, index) => ({
+          length: 280, // Approximate height of BookItem
+          offset: 280 * Math.floor(index / 2),
+          index,
+        })}
       />
     </View>
   );

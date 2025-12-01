@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface SearchBarProps {
@@ -7,13 +7,17 @@ interface SearchBarProps {
   onChangeText: (text: string) => void;
   placeholder?: string;
   style?: any;
+  onFilterPress?: () => void;
+  hasActiveFilters?: boolean;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChangeText,
   placeholder = "Busca por título, autor...",
-  style
+  style,
+  onFilterPress,
+  hasActiveFilters = false,
 }) => {
   return (
     <View style={[styles.searchContainer, style]}>
@@ -25,6 +29,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
         value={value}
         onChangeText={onChangeText}
       />
+      {onFilterPress && (
+        <TouchableOpacity onPress={onFilterPress} style={styles.filterButton}>
+          <Ionicons 
+            name="options-outline" 
+            size={22} 
+            color={hasActiveFilters ? "#d500ff" : "#666"} 
+          />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -47,6 +60,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     paddingVertical: 0,
+  },
+  filterButton: {
+    marginLeft: 10,
+    padding: 4,
   },
 });
 

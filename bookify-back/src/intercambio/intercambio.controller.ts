@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Put, Body, Param, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Put, Delete, Body, Param, Query, BadRequestException } from '@nestjs/common';
 import { ExchangeService } from './intercambio.service';
 import { CreateExchangeDto, UpdateExchangeDto, ExchangeResponseDto } from './intercambio.dto';
 import { ProposeMeetingLocationDto } from './dto/meeting-location.dto';
@@ -20,6 +20,34 @@ export class ExchangeController {
         success: true,
         data: exchange,
         message: 'Solicitud de intercambio enviada correctamente',
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  /**
+   * Verificar si existe una solicitud pendiente
+   * GET /api/exchange/check-pending?bookId=123&userId=456&ownerId=789
+   */
+  @Get('check-pending')
+  async checkPendingExchange(
+    @Query('bookId') bookId: string,
+    @Query('userId') userId: string,
+    @Query('ownerId') ownerId: string,
+  ): Promise<{
+    success: boolean;
+    hasPending: boolean;
+  }> {
+    try {
+      const hasPending = await this.exchangeService.checkPendingExchange(
+        Number(bookId),
+        Number(userId),
+        Number(ownerId),
+      );
+      return {
+        success: true,
+        hasPending,
       };
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -192,6 +220,29 @@ export class ExchangeController {
         message: result.data.ambos_confirmaron 
           ? '¡Intercambio completado! Ambos usuarios han confirmado' 
           : 'Confirmación registrada. Esperando confirmación del otro usuario',
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  /**
+   * Cancelar intercambio
+   * DELETE /api/exchange/:id/cancel?userId=123
+   */
+  @Delete(':id/cancel')
+  async cancelExchange(
+    @Param('id') id: string,
+    @Query('userId') userId: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      await this.exchangeService.cancelExchange(Number(id), Number(userId));
+      return {
+        success: true,
+        message: 'Intercambio cancelado exitosamente',
       };
     } catch (error) {
       throw new BadRequestException(error.message);

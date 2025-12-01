@@ -12,8 +12,10 @@ export class CreateExchangeDto {
   @IsNumber()
   id_usuario_solicitante: number;
 
+  // El receptor se obtiene automáticamente del propietario del libro solicitado
   @IsNumber()
-  id_usuario_receptor: number;
+  @IsOptional()
+  id_usuario_receptor?: number;
 }
 
 export class UpdateExchangeDto {

@@ -64,7 +64,7 @@ export default function LocationRequiredScreen({ children }: LocationRequiredScr
         {/* Botón para ir al perfil */}
         <TouchableOpacity 
           style={styles.button}
-          onPress={() => router.push('/(tabs)/perfil')}
+          onPress={() => router.push('/(tabs)/ubicacion')}
         >
           <Ionicons name="navigate-circle-outline" size={24} color="#fff" />
           <ThemedText style={styles.buttonText}>

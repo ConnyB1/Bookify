@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { Libro } from '../entities/book.entity';
+import { Repository, In, Not } from 'typeorm';
+import { Libro, EstadoLibro } from '../entities/book.entity';
 import { Genero } from '../entities/genero.entity';
 import { LibroImagen } from '../entities/libro-imagen.entity';
 import { Usuario } from '../entities/user.entity';
@@ -36,6 +36,7 @@ export class BookService {
     if (!FEATURES.PROXIMITY_FILTER_ENABLED) {
       console.log('[DEBUG] ⚠️ Filtro de proximidad DESACTIVADO globalmente - retornando todos los libros');
       const libros = await this.bookRepository.find({
+        where: { estado: Not(EstadoLibro.EXCHANGED) },
         relations: ['propietario', 'generos', 'imagenes'],
       });
       return libros;
@@ -45,6 +46,7 @@ export class BookService {
     if (!userId) {
       console.log('[DEBUG] Sin userId - retornando todos los libros');
       const libros = await this.bookRepository.find({
+        where: { estado: Not(EstadoLibro.EXCHANGED) },
         relations: ['propietario', 'generos', 'imagenes'],
       });
       return libros;
@@ -59,6 +61,7 @@ export class BookService {
     if (!usuario || !usuario.latitud || !usuario.longitud) {
       console.log('[DEBUG] Usuario sin ubicación configurada - retornando todos los libros');
       const libros = await this.bookRepository.find({
+        where: { estado: Not(EstadoLibro.EXCHANGED) },
         relations: ['propietario', 'generos', 'imagenes'],
       });
       return libros;
@@ -91,6 +94,7 @@ export class BookService {
       )
       .where('propietario.latitud IS NOT NULL')
       .andWhere('propietario.longitud IS NOT NULL')
+      .andWhere('libro.estado != :exchangedStatus', { exchangedStatus: EstadoLibro.EXCHANGED })
       .andWhere(
         `ST_DWithin(
           ST_MakePoint(propietario.longitud, propietario.latitud)::geography,
@@ -221,8 +225,20 @@ export class BookService {
 
   async findByUser(userId: number): Promise<Libro[]> {
     return await this.bookRepository.find({
-      where: { id_propietario: userId },
+      where: { 
+        id_propietario: userId,
+        estado: Not(EstadoLibro.EXCHANGED)
+      },
       relations: ['generos', 'imagenes'],
+    });
+  }
+
+  async countByUser(userId: number): Promise<number> {
+    return await this.bookRepository.count({
+      where: { 
+        id_propietario: userId,
+        estado: Not(EstadoLibro.EXCHANGED)
+      },
     });
   }
 

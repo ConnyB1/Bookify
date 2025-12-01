@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { API_CONFIG, buildApiUrl } from '../config/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Book {
   id_libro: number;
@@ -8,23 +9,34 @@ interface Book {
   descripcion?: string;
   imagenes?: { id_imagen: number; url_imagen: string; }[];
   generos?: { id_genero: number; nombre: string; }[];
+  id_propietario?: number;
+  distancia_km?: number;
 }
 
 export const useBookSearch = () => {
+  const { user } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
 
-  // Función para obtener todos los libros
+  // Función para obtener libros dentro del rango del usuario
   const fetchBooks = async () => {
     try {
       setLoading(true);
-      const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS));
+      // Pasar userId si existe para filtrar por proximidad
+      const queryParam = user?.id_usuario ? `?userId=${user.id_usuario}` : '';
+      const url = buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS + queryParam);
+      
+      const response = await fetch(url);
       const result = await response.json();
       
       if (result.success && result.data) {
-        setBooks(result.data);
+        // Filtrar libros que no sean del usuario actual
+        const booksNotOwned = result.data.filter(
+          (book: Book) => book.id_propietario !== user?.id_usuario
+        );
+        setBooks(booksNotOwned);
       }
     } catch (error) {
       console.error('Error fetching books:', error);
@@ -33,10 +45,12 @@ export const useBookSearch = () => {
     }
   };
 
-  // Cargar libros al inicio
+  // Cargar libros al inicio y cuando cambie el usuario
   useEffect(() => {
-    fetchBooks();
-  }, []);
+    if (user?.id_usuario) {
+      fetchBooks();
+    }
+  }, [user?.id_usuario]);
 
   // Función para alternar géneros
   const toggleGenre = (genre: string) => {

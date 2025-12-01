@@ -6,17 +6,16 @@ import {
   StyleSheet, 
   ScrollView, 
   ActivityIndicator, 
-  // Alert, // <-- Quitado
   Image, 
   Dimensions, 
   TouchableOpacity, 
   View 
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { API_CONFIG, buildApiUrl } from '../../../config/api';
 import { useAuth } from '@/contexts/AuthContext';
-// 1. Importar el hook y el componente de alerta
 import CustomAlert from '@/components/CustomAlert';
 import { useAlertDialog } from '@/hooks/useAlertDialog';
 
@@ -37,6 +36,13 @@ interface LibroDTO {
   imagenes?: ImagenDTO[];
 }
 
+interface UserBooksCountResponse {
+  success: boolean;
+  data: {
+    count: number;
+  };
+}
+
 const { width } = Dimensions.get('window');
 
 export default function BookDetailScreen() {
@@ -52,6 +58,8 @@ export default function BookDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [userBooksCount, setUserBooksCount] = useState<number>(0);
+  const [hasPendingExchange, setHasPendingExchange] = useState(false);
 
   const bookId = typeof id === 'string' ? parseInt(id, 10) : undefined;
 
@@ -62,7 +70,17 @@ export default function BookDetailScreen() {
     } else {
       setLoading(false);
     }
-  }, [bookId]);
+    
+    // Cargar cantidad de libros del usuario
+    if (user?.id_usuario) {
+      fetchUserBooksCount(user.id_usuario);
+    }
+    
+    // Verificar si ya existe una solicitud pendiente
+    if (bookId && user?.id_usuario && libro?.propietario?.id_usuario) {
+      checkPendingExchange(bookId, user.id_usuario, libro.propietario.id_usuario);
+    }
+  }, [bookId, user?.id_usuario, libro?.propietario?.id_usuario]);
 
   const fetchBookDetails = async (id: number) => {
     setLoading(true);
@@ -94,6 +112,46 @@ export default function BookDetailScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserBooksCount = async (userId: number) => {
+    try {
+      const url = buildApiUrl(`${API_CONFIG.ENDPOINTS.BOOKS}/user/${userId}/count`);
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${tokens?.accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const result: UserBooksCountResponse = await response.json();
+        if (result.success && result.data) {
+          setUserBooksCount(result.data.count);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user books count:', error);
+      setUserBooksCount(0);
+    }
+  };
+
+  const checkPendingExchange = async (bookId: number, userId: number, ownerId: number) => {
+    try {
+      const url = buildApiUrl(`/api/exchange/check-pending?bookId=${bookId}&userId=${userId}&ownerId=${ownerId}`);
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${tokens?.accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setHasPendingExchange(result.hasPending || false);
+      }
+    } catch (error) {
+      console.error('Error checking pending exchange:', error);
+      setHasPendingExchange(false);
     }
   };
 
@@ -181,10 +239,37 @@ export default function BookDetailScreen() {
     if (!libro) return;
 
     if (libro.propietario.id_usuario === user.id_usuario) {
-      // 4. Reemplazar Alert.alert
       showAlert('Error', 'No puedes solicitar intercambio de tu propio libro', [
         { text: 'OK', onPress: hideAlert }
       ]);
+      return;
+    }
+
+    // Verificar si ya existe una solicitud pendiente
+    if (hasPendingExchange) {
+      showAlert(
+        'Solicitud Pendiente',
+        'Ya tienes una solicitud de intercambio pendiente para este libro. Espera a que el propietario responda.',
+        [{ text: 'Entendido', onPress: hideAlert }]
+      );
+      return;
+    }
+
+    if (userBooksCount === 0) {
+      showAlert(
+        'Libro Requerido',
+        'Debes publicar al menos un libro antes de poder solicitar intercambios. Esto asegura un intercambio justo para ambas partes.',
+        [
+          { text: 'Cancelar', style: 'cancel', onPress: hideAlert },
+          { 
+            text: 'Publicar Libro', 
+            onPress: () => {
+              hideAlert();
+              router.push('/(tabs)/agregar');
+            }
+          }
+        ]
+      );
       return;
     }
 
@@ -207,14 +292,11 @@ export default function BookDetailScreen() {
                 method: 'POST',
                 headers: { 
                   'Content-Type': 'application/json',
-                  // BUG FIX: El backend requiere autorización para este endpoint
-                  'Authorization': `Bearer ${tokens.accessToken}`
                 },
                 body: JSON.stringify({
                   id_libro_solicitado: libro.id_libro,
                   id_usuario_solicitante: user.id_usuario,
-                  // BUG FIX: El backend espera 'id_usuario_solicitante_receptor'
-                  id_usuario_solicitante_receptor: libro.propietario.id_usuario,
+                  // El backend obtiene el receptor automáticamente del propietario del libro
                 }),
               });
 
@@ -222,6 +304,9 @@ export default function BookDetailScreen() {
               
               // BUG FIX: Usar response.ok es más seguro que result.success
               if (response.ok) {
+                // Actualizar estado para indicar que hay solicitud pendiente
+                setHasPendingExchange(true);
+                
                 // 4. Reemplazar Alert.alert
                 showAlert(
                   'Éxito',
@@ -383,22 +468,44 @@ export default function BookDetailScreen() {
 
           {/* Botón de intercambio (solo si no es el dueño) */}
           {!isOwner && (
-            <TouchableOpacity
-              onPress={handleExchangeRequest}
-              disabled={sendingRequest}
-              style={[
-                styles.exchangeButton,
-                sendingRequest && styles.exchangeButtonDisabled
-              ]}
-            >
-              {sendingRequest ? (
-                <ActivityIndicator color="white" />
+            <>
+              {hasPendingExchange ? (
+                <View style={styles.pendingExchangeContainer}>
+                  <View style={styles.pendingExchangeButton}>
+                    <Ionicons name="time-outline" size={20} color="#FFA726" />
+                    <ThemedText style={styles.pendingExchangeText}>
+                      Solicitud Pendiente
+                    </ThemedText>
+                  </View>
+                  <ThemedText style={styles.pendingExchangeSubtext}>
+                    Ya enviaste una solicitud de intercambio. Espera la respuesta del propietario.
+                  </ThemedText>
+                </View>
+              ) : sendingRequest ? (
+                <TouchableOpacity
+                  disabled={true}
+                  style={[styles.exchangeButton, styles.exchangeButtonDisabled]}
+                >
+                  <ActivityIndicator color="white" />
+                </TouchableOpacity>
               ) : (
-                <ThemedText style={styles.exchangeButtonText}>
-                  Intercambiar
-                </ThemedText>
+                <LinearGradient
+                  colors={['#6100BD', '#D500FF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.exchangeButton}
+                >
+                  <TouchableOpacity
+                    onPress={handleExchangeRequest}
+                    style={styles.exchangeButtonContent}
+                  >
+                    <ThemedText style={styles.exchangeButtonText}>
+                      Intercambiar
+                    </ThemedText>
+                  </TouchableOpacity>
+                </LinearGradient>
               )}
-            </TouchableOpacity>
+            </>
           )}
 
           {/* Descripción */}
@@ -590,25 +697,58 @@ const styles = StyleSheet.create({
   },
   exchangeButton: {
     marginTop: 10,
-    backgroundColor: '#d500ff',
-    paddingVertical: 14,
     borderRadius: 30,
-    alignItems: 'center',
     width: '100%',
     shadowColor: '#d500ff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
+    overflow: 'hidden',
   },
   exchangeButtonDisabled: {
     backgroundColor: '#666',
     shadowOpacity: 0,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  exchangeButtonContent: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    width: '100%',
   },
   exchangeButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  pendingExchangeContainer: {
+    marginTop: 10,
+    width: '100%',
+  },
+  pendingExchangeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#333',
+    borderRadius: 30,
+    paddingVertical: 14,
+    gap: 8,
+    borderWidth: 2,
+    borderColor: '#FFA726',
+  },
+  pendingExchangeText: {
+    color: '#FFA726',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  pendingExchangeSubtext: {
+    color: '#999',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+    lineHeight: 18,
   },
   descriptionContainer: {
     width: '100%',

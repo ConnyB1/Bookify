@@ -377,8 +377,8 @@ export default function AgregarScreen() {
 
   return (
     <LocationRequiredScreen>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.container}>
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           {/* Header */}
           <View style={styles.header}>
             <ThemedText style={styles.title}>Agregar Libro</ThemedText>
@@ -386,7 +386,7 @@ export default function AgregarScreen() {
               <TouchableOpacity 
                 onPress={saveBook}
                 style={styles.saveButton}
-                disabled={saving} // Deshabilitar mientras se guarda
+                disabled={saving}
               >
                 {saving ? (
                   <ActivityIndicator color="#fff" size="small" />
@@ -397,7 +397,11 @@ export default function AgregarScreen() {
             </View>
           </View>
 
-        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContentContainer}
+        >
           {/* Sección de Fotos */}
           <View style={styles.photoSection}>
             {/* Preview de la portada */}
@@ -505,7 +509,6 @@ export default function AgregarScreen() {
           </View>
 
           {/* Formulario */}
-          <View style={styles.form}>
             {/* Título */}
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Título</ThemedText>
@@ -575,7 +578,6 @@ export default function AgregarScreen() {
                 ))}
               </View>
             </View>
-          </View>
         </ScrollView>
         
         {/* 4. Añadir el componente CustomAlert al final */}
@@ -594,21 +596,21 @@ export default function AgregarScreen() {
           onCamera={takePhoto}
           onGallery={pickImage}
         />
+        </SafeAreaView>
       </ThemedView>
-    </SafeAreaView>
     </LocationRequiredScreen>
   );
 }
 
-// Estilos de tu código original
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#151718',
+    paddingBottom: 30,
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
+    backgroundColor: '#151718',
   },
   header: {
     flexDirection: 'row',
@@ -616,6 +618,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 20,
     paddingBottom: 15,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
     marginBottom: 20,
@@ -634,7 +637,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    minWidth: 80, // Ancho mínimo
+    minWidth: 80,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -644,10 +647,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   scrollContent: {
-    // No necesita flex: 1 si el contenedor principal ya lo tiene
+    flex: 1,
   },
-
-  // Photo Section
+  scrollContentContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
   photoSection: {
     marginBottom: 30,
   },
@@ -674,8 +679,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
   },
-
-  // Cover Preview
   coverPreviewContainer: {
     marginBottom: 20,
     alignItems: 'center',
@@ -716,8 +719,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-
-  // Carousel
   carouselContainer: {
     marginBottom: 20,
   },
@@ -793,20 +794,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  imagesContainer: {
-    // marginTop: 10, // Quitado, ya que addPhotoButton tiene marginBottom
-  },
-  bookImage: {
-    width: 80,
-    height: 100,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-
-  // Form Styles
-  form: {
-    paddingBottom: 40,
-  },
   inputGroup: {
     marginBottom: 20,
   },
@@ -830,46 +817,22 @@ const styles = StyleSheet.create({
     height: 100,
     textAlignVertical: 'top',
   },
-  pickerContainer: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#444',
-    overflow: 'hidden',
-  },
-  picker: {
-    color: 'white',
-    backgroundColor: '#2a2a2a',
-    height: 50,
-  },
-
-  // Genres
   genresContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10, // 'gap' es más simple que marginBottom
-    // paddingBottom: 20, // Quitado, el form ya tiene paddingBottom
+    gap: 10,
   },
   genreButton: {
     backgroundColor: '#2a2a2a',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    // marginBottom: 8, // Quitado, 'gap' lo maneja
     borderWidth: 1,
     borderColor: '#444',
-  },
-  genreButtonActive: {
-    backgroundColor: '#d500ff',
-    borderColor: '#d500ff',
   },
   genreText: {
     color: '#ccc',
     fontSize: 14,
     fontWeight: '500',
-  },
-  genreTextActive: {
-    color: 'white',
-    fontWeight: 'bold',
   },
 });

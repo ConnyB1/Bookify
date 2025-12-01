@@ -15,29 +15,80 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
+import GenrePreferencesModal from '../../components/GenrePreferencesModal';
+import { Ionicons } from '@expo/vector-icons';
+import CustomAlert, { AlertButton } from '../../components/CustomAlert';
+
+const useAlertDialog = () => {
+  const [alertConfig, setAlertConfig] = React.useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [],
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    buttons: AlertButton[] = [{ text: 'OK', onPress: () => {} }]
+  ) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      buttons: buttons.map(btn => ({
+        ...btn,
+        onPress: () => {
+          btn.onPress();
+          setAlertConfig(prev => ({ ...prev, visible: false }));
+        }
+      })),
+    });
+  };
+
+  const AlertDialog = () => (
+    <CustomAlert
+      visible={alertConfig.visible}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      buttons={alertConfig.buttons}
+      onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+    />
+  );
+
+  return { showAlert, AlertDialog };
+};
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  const { showAlert, AlertDialog } = useAlertDialog();
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
+  const [showGenreModal, setShowGenreModal] = useState(false);
 
   const handleRegister = async () => {
     if (!nombreUsuario || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      showAlert('Error', 'Por favor completa todos los campos');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+      showAlert('Error', 'Las contraseñas no coinciden');
       return;
     }
 
     if (password.length < 4) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 4 caracteres');
+      showAlert('Error', 'La contraseña debe tener al menos 4 caracteres');
       return;
     }
 
@@ -60,18 +111,44 @@ export default function RegisterScreen() {
       if (result.success && result.data) {
         await login(result.data.user, result.data.tokens);
         
-        Alert.alert('¡Registro Exitoso!', 'Tu cuenta ha sido creada', [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)/Inicio'),
-          },
-        ]);
+        // Si el usuario seleccionó géneros, guardarlos
+        if (selectedGenres.length > 0) {
+          try {
+            const genresResponse = await fetch(
+              buildApiUrl(`/users/${result.data.user.id_usuario}/genre-preferences`),
+              {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ genreIds: selectedGenres }),
+              }
+            );
+            
+            const genresResult = await genresResponse.json();
+            console.log('Genre preferences saved:', genresResult);
+          } catch (error) {
+            console.error('Error saving genre preferences:', error);
+            // No mostramos error al usuario, las preferencias se pueden configurar después
+          }
+        }
+        
+        showAlert(
+          '¡Registro Exitoso!',
+          'Tu cuenta ha sido creada correctamente. ¡Bienvenido a Bookify!',
+          [
+            {
+              text: 'Comenzar',
+              onPress: () => router.replace('/(tabs)/Inicio'),
+            },
+          ]
+        );
       } else {
-        Alert.alert('Error', result.message || 'No se pudo registrar el usuario');
+        showAlert('Error', result.message || 'No se pudo registrar el usuario');
       }
     } catch (error) {
       console.error('Error en registro:', error);
-      Alert.alert('Error', 'No se pudo conectar con el servidor');
+      showAlert('Error', 'No se pudo conectar con el servidor');
     } finally {
       setLoading(false);
     }
@@ -79,6 +156,18 @@ export default function RegisterScreen() {
 
   const navigateToLogin = () => {
     router.push('/Auth/Login');
+  };
+
+  const handleGenreSelect = (genreIds: number[]) => {
+    setSelectedGenres(genreIds);
+    setShowGenreModal(false);
+  };
+
+  const getGenreButtonText = () => {
+    if (selectedGenres.length === 0) {
+      return 'Seleccionar géneros favoritos (opcional)';
+    }
+    return `${selectedGenres.length} género${selectedGenres.length > 1 ? 's' : ''} seleccionado${selectedGenres.length > 1 ? 's' : ''}`;
   };
 
   return (
@@ -138,6 +227,15 @@ export default function RegisterScreen() {
             />
 
             <TouchableOpacity
+              style={styles.genreButton}
+              onPress={() => setShowGenreModal(true)}
+            >
+              <Ionicons name="book" size={20} color="#8b00ff" />
+              <Text style={styles.genreButtonText}>{getGenreButtonText()}</Text>
+              <Ionicons name="chevron-forward" size={20} color="#888" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={styles.signUpButton}
               onPress={handleRegister}
               disabled={loading}
@@ -157,7 +255,15 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        <GenrePreferencesModal
+          visible={showGenreModal}
+          onClose={() => setShowGenreModal(false)}
+          onSave={handleGenreSelect}
+          initialSelectedGenres={selectedGenres}
+        />
       </KeyboardAvoidingView>
+      <AlertDialog />
     </SafeAreaView>
   );
 }
@@ -202,6 +308,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#2a2a2a',
+  },
+  genreButton: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  genreButtonText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#fff',
+    marginLeft: 12,
   },
   signUpButton: {
     backgroundColor: '#8b00ff',

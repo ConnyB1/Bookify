@@ -36,6 +36,7 @@ export default function TabLayout() {
           borderTopWidth: 0,
           height: 80,
           paddingBottom: 20,
+          borderRadius: 15,
           paddingTop: 10,
           
         },

@@ -11,10 +11,12 @@ interface ChatHeaderProps {
   onUserPress: () => void;
   showExchangeCard?: boolean;
   onToggleExchangeCard?: () => void;
+  onTogglecalificar?: () => void;
   hasExchange?: boolean;
+  hasRated?: boolean;
 }
 
-export function ChatHeader({ otherUser, isOnline, onBack, onUserPress, showExchangeCard, onToggleExchangeCard, hasExchange }: ChatHeaderProps) {
+export function ChatHeader({ otherUser, isOnline, onBack, onUserPress, showExchangeCard, onToggleExchangeCard, onTogglecalificar, hasExchange, hasRated }: ChatHeaderProps) {
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -40,20 +42,38 @@ export function ChatHeader({ otherUser, isOnline, onBack, onUserPress, showExcha
           </Text>
         </View>
       </TouchableOpacity>
-
-      {/* Botón para mostrar/ocultar información del intercambio */}
-      {hasExchange && onToggleExchangeCard && (
-        <TouchableOpacity 
-          onPress={onToggleExchangeCard} 
-          style={styles.toggleButton}
-          activeOpacity={0.7}
-        >
-          <Ionicons 
-            name={showExchangeCard ? "location" : "location-outline"} 
-            size={26} 
-            color={showExchangeCard ? "#d500ff" : "#999"} 
-          />
-        </TouchableOpacity>
+      
+      {/* Botones de acción lado a lado */}
+      {hasExchange && (
+        <View style={styles.actionsContainer}>
+          {onToggleExchangeCard && (
+            <TouchableOpacity 
+              onPress={onToggleExchangeCard} 
+              style={styles.toggleButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={showExchangeCard ? "swap-horizontal" : "swap-horizontal-outline"} 
+                size={24} 
+                color={showExchangeCard ? "#d500ff" : "#999"} 
+              />
+            </TouchableOpacity>
+          )}
+          
+          {onTogglecalificar && (
+            <TouchableOpacity 
+              onPress={onTogglecalificar} 
+              style={styles.toggleButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={hasRated ? "star" : "star-outline"} 
+                size={24} 
+                color={hasRated ? "#FFD700" : "#999"} 
+              />
+            </TouchableOpacity>
+          )}
+        </View>
       )}
     </View>
   );
@@ -108,10 +128,18 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   toggleButton: {
     padding: 8,
-    marginLeft: 8,
     borderRadius: 8,
     backgroundColor: '#252525',
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

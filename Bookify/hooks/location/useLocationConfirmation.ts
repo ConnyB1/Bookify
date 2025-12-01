@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { apiClient } from '../../utils/apiClient';
+import { useAlertDialog } from '../useAlertDialog';
 
 interface LocationData {
   lat: number;
@@ -14,6 +14,7 @@ interface LocationData {
 export function useLocationConfirmation(exchangeId: string | string[]) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
+  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
 
   const confirmLocation = async (locationData: LocationData) => {
     try {
@@ -21,9 +22,8 @@ export function useLocationConfirmation(exchangeId: string | string[]) {
       const res = await apiClient.post(`/api/exchange/${exchangeId}/propose-location`, locationData);
 
       if (res.ok && res.data) {
-        // assume success flag or general success
-        Alert.alert('Éxito', 'Ubicación propuesta correctamente', [
-          { text: 'OK', onPress: () => router.back() },
+        showAlert('Éxito', 'Ubicación propuesta correctamente', [
+          { text: 'OK', onPress: () => { hideAlert(); router.back(); } },
         ]);
         return true;
       }
@@ -31,12 +31,14 @@ export function useLocationConfirmation(exchangeId: string | string[]) {
       const errMsg = res.error?.message || (res.data && (res.data as any).message) || 'Error al proponer ubicación';
       throw new Error(errMsg);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo proponer la ubicación');
+      showAlert('Error', error.message || 'No se pudo proponer la ubicación', [
+        { text: 'OK', onPress: hideAlert },
+      ]);
       return false;
     } finally {
       setConfirming(false);
     }
   };
 
-  return { confirmLocation, confirming };
+  return { confirmLocation, confirming, alertVisible, alertConfig, hideAlert };
 }

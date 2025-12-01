@@ -6,13 +6,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseEnabled } from '../../config/supabase';
+import { buildApiUrl } from '../../config/api';
 
 // Hooks personalizados
 import { useChatMessages } from '../../hooks/chat/useChatMessages';
@@ -24,7 +24,11 @@ import { useChatExchange } from '../../hooks/chat/useChatExchange';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessageList } from '../../components/chat/ChatMessageList';
 import { ChatInput } from '../../components/chat/ChatInput';
-import { ExchangeBookCard } from '../../components/chat/ExchangeBookCard';
+import { ExchangeSelector } from '../../components/chat/ExchangeSelector';
+import { ExchangeDetailsModal } from '../../components/chat/ExchangeDetailsModal';
+import { RatingModal } from '../../components/chat/RatingModal';
+import CustomAlert from '../../components/CustomAlert';
+import { useAlertDialog } from '../../hooks/useAlertDialog';
 
 // Tipos
 import type { ChatUser } from '../../types/chat';
@@ -43,6 +47,10 @@ export default function ChatRoomScreen() {
   const otherUserIdNum = otherUserId ? parseInt(otherUserId, 10) : 0;
   const flatListRef = useRef<FlatList>(null);
   const [showExchangeCard, setShowExchangeCard] = React.useState(false); // Cerrado por defecto
+  const [showExchangeModal, setShowExchangeModal] = React.useState(false);
+  const [showRatingModal, setShowRatingModal] = React.useState(false);
+  const [hasRated, setHasRated] = React.useState(false);
+  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
 
   // Información del otro usuario
   const otherUser: ChatUser = {
@@ -69,9 +77,12 @@ export default function ChatRoomScreen() {
 
   // Hook de intercambio
   const {
+    exchanges,
+    selectedExchange,
     exchange,
     loading: exchangeLoading,
     canSelectBook,
+    selectExchange,
     selectOfferedBook,
     reloadExchange,
   } = useChatExchange(chatId, user?.id_usuario);
@@ -102,7 +113,7 @@ export default function ChatRoomScreen() {
   // Efecto inicial
   useEffect(() => {
     if (!chatId || !user) {
-      Alert.alert('Error', 'Chat inválido');
+      showAlert('Error', 'Chat inválido', [{ text: 'OK', onPress: hideAlert }]);
       router.back();
       return;
     }
@@ -119,6 +130,28 @@ export default function ChatRoomScreen() {
     };
   }, [chatId, user]);
 
+  // Verificar si el usuario ya calificó
+  useEffect(() => {
+    const checkRating = async () => {
+      if (!selectedExchange || !user?.id_usuario) return;
+
+      try {
+        const response = await fetch(
+          buildApiUrl(`/api/rating/check?exchangeId=${selectedExchange.id_intercambio}&userId=${user.id_usuario}`)
+        );
+        const result = await response.json();
+        
+        if (result.success) {
+          setHasRated(result.data.hasRated);
+        }
+      } catch (error) {
+        console.error('Error verificando calificación:', error);
+      }
+    };
+
+    checkRating();
+  }, [selectedExchange, user]);
+
   // Manejar envío de mensajes
   const handleSendMessage = async (text: string) => {
     await sendMessage(text);
@@ -127,11 +160,11 @@ export default function ChatRoomScreen() {
 
   // Manejar selección de libro para ofrecer
   const handleSelectBook = () => {
-    if (!exchange) return;
+    if (!selectedExchange) return;
     
     // El receptor selecciona un libro del solicitante
     // otherUserId es el ID del solicitante
-    const otherUserId = exchange.id_usuario_solicitante;
+    const otherUserId = selectedExchange.id_usuario_solicitante;
     
     console.log('[Chat] Navegando a seleccionar libro del usuario:', otherUserId);
     
@@ -140,7 +173,7 @@ export default function ChatRoomScreen() {
       pathname: '/select-book-for-exchange',
       params: {
         chatId: chatId.toString(),
-        exchangeId: exchange.id_intercambio.toString(),
+        exchangeId: selectedExchange.id_intercambio.toString(),
         otherUserId: otherUserId.toString(),
       },
     } as any);
@@ -178,32 +211,86 @@ export default function ChatRoomScreen() {
           }}
           showExchangeCard={showExchangeCard}
           onToggleExchangeCard={() => setShowExchangeCard(!showExchangeCard)}
-          hasExchange={!!exchange}
+          onTogglecalificar={() => {
+            if (!hasRated && selectedExchange?.confirmacion_solicitante && selectedExchange?.confirmacion_receptor) {
+              setShowRatingModal(true);
+            } else if (hasRated) {
+              showAlert('Ya calificaste', 'Ya has calificado este intercambio', [{ text: 'OK', onPress: hideAlert }]);
+            } else {
+              showAlert('No disponible', 'Solo puedes calificar cuando ambos usuarios han confirmado el intercambio', [{ text: 'OK', onPress: hideAlert }]);
+            }
+          }}
+          hasExchange={exchanges.length > 0}
+          hasRated={hasRated}
         />
 
-        {/* Mostrar información del intercambio si existe */}
-        {exchange && !exchangeLoading && showExchangeCard && (
-          <ExchangeBookCard
-            key={`exchange-${exchange.id_intercambio}`}
-            exchange={exchange}
-            canSelectBook={canSelectBook}
-            onSelectBook={handleSelectBook}
+        <View style={styles.messagesContainer}>
+          {/* Selector de intercambios */}
+          {showExchangeCard && (
+            <View style={styles.exchangeCardOverlay}>
+              <ExchangeSelector
+                exchanges={exchanges}
+                selectedExchangeId={selectedExchange?.id_intercambio}
+                onSelectExchange={selectExchange}
+                currentUserId={user?.id_usuario}
+                onOpenDetails={(exchange) => {
+                  setShowExchangeModal(true);
+                }}
+              />
+            </View>
+          )}
+
+          <ChatMessageList
+            messages={messages}
             currentUserId={user?.id_usuario}
-            onExchangeUpdate={reloadExchange}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            onContentSizeChange={() => scrollToEnd()}
+            listRef={flatListRef}
           />
-        )}
-
-        <ChatMessageList
-          messages={messages}
-          currentUserId={user?.id_usuario}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          onContentSizeChange={() => scrollToEnd()}
-          listRef={flatListRef}
-        />
+        </View>
 
         <ChatInput onSend={handleSendMessage} sending={sending} />
       </KeyboardAvoidingView>
+      
+      {/* Modal de detalles de intercambio */}
+      {selectedExchange && (
+        <ExchangeDetailsModal
+          visible={showExchangeModal}
+          exchange={selectedExchange}
+          canSelectBook={canSelectBook}
+          onSelectBook={handleSelectBook}
+          currentUserId={user?.id_usuario}
+          onExchangeUpdate={reloadExchange}
+          onClose={() => setShowExchangeModal(false)}
+        />
+      )}
+      
+      {/* Modal de calificación */}
+      {selectedExchange && (
+        <RatingModal
+          visible={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          otherUserName={otherUser.name}
+          otherUserId={otherUserIdNum}
+          otherUserPhoto={otherUser.photo}
+          currentUserId={user?.id_usuario || 0}
+          exchangeId={selectedExchange.id_intercambio}
+          onRatingSubmitted={() => {
+            console.log('Calificación enviada exitosamente');
+            setHasRated(true);
+            showAlert('Éxito', 'Tu calificación ha sido enviada exitosamente', [{ text: 'Genial', onPress: hideAlert }]);
+          }}
+        />
+      )}
+      
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }
@@ -216,6 +303,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#151718',
+  },
+  messagesContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  exchangeCardOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    elevation: 10,
   },
   loadingContainer: {
     flex: 1,

@@ -44,6 +44,9 @@ export class Usuario {
   @Column({ name: 'push_token', nullable: true, type: 'text' })
   push_token: string | null;
 
+  @Column({ name: 'genero_preferencias', type: 'integer', array: true, nullable: true })
+  genero_preferencias: number[] | null;
+
   // ✅ Relación con los libros que posee el usuario
   @OneToMany(() => Libro, (libro) => libro.propietario)
   libros: Libro[];

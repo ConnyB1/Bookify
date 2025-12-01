@@ -112,6 +112,23 @@ export class ExchangeService {
   }
 
   /**
+   * Verificar si existe una solicitud pendiente entre estos usuarios específicos
+   */
+  async checkPendingExchange(bookId: number, userId: number, ownerId: number): Promise<boolean> {
+    // Solo verificar si ESTE usuario específico tiene una solicitud pendiente con ESTE propietario específico
+    const pendingExchange = await this.intercambioRepository.findOne({
+      where: {
+        id_libro_solicitado_fk: bookId,
+        id_usuario_solicitante_fk: userId,
+        id_usuario_solicitante_receptor_fk: ownerId,
+        estado_propuesta: EstadoPropuesta.PENDING,
+      },
+    });
+
+    return !!pendingExchange;
+  }
+
+  /**
    * Obtener un intercambio específico por ID
    */
   async getExchangeById(intercambioId: number): Promise<ExchangeResponseDto & { id_chat?: number }> {
@@ -580,6 +597,78 @@ export class ExchangeService {
         estado_propuesta: intercambio.estado_propuesta,
       },
     };
+  }
+
+  /**
+   * Cancelar intercambio
+   */
+  async cancelExchange(intercambioId: number, userId: number): Promise<void> {
+    const intercambio = await this.intercambioRepository.findOne({
+      where: { id_intercambio: intercambioId },
+      relations: ['libro_solicitado', 'libro_ofertado', 'usuario_solicitante', 'usuario_solicitante_receptor'],
+    });
+
+    if (!intercambio) {
+      throw new NotFoundException('Intercambio no encontrado');
+    }
+
+    // Verificar que el usuario sea parte del intercambio
+    const esParteDelIntercambio = 
+      intercambio.id_usuario_solicitante_fk === userId || 
+      intercambio.id_usuario_solicitante_receptor_fk === userId;
+
+    if (!esParteDelIntercambio) {
+      throw new BadRequestException('No tienes permiso para cancelar este intercambio');
+    }
+
+    // No permitir cancelar si ya está completado
+    if (intercambio.estado_propuesta === EstadoPropuesta.COMPLETED) {
+      throw new BadRequestException('No puedes cancelar un intercambio ya completado');
+    }
+
+    // Cambiar estado a rechazado
+    intercambio.estado_propuesta = EstadoPropuesta.REJECTED;
+    await this.intercambioRepository.save(intercambio);
+
+    // Crear notificación para el otro usuario
+    const otroUsuarioId = userId === intercambio.id_usuario_solicitante_fk
+      ? intercambio.id_usuario_solicitante_receptor_fk
+      : intercambio.id_usuario_solicitante_fk;
+
+    const usuarioCancelo = userId === intercambio.id_usuario_solicitante_fk
+      ? intercambio.usuario_solicitante
+      : intercambio.usuario_solicitante_receptor;
+
+    const notificacion = this.notificacionRepository.create({
+      id_usuario_receptor: otroUsuarioId,
+      id_usuario_emisor: userId,
+      id_intercambio: intercambioId,
+      tipo: TipoNotificacion.SOLICITUD_INTERCAMBIO,
+      mensaje: `${usuarioCancelo.nombre_usuario} ha cancelado el intercambio`,
+    });
+
+    await this.notificacionRepository.save(notificacion);
+
+    // Enviar notificación push
+    try {
+      const receptor = await this.usuarioRepository.findOne({ 
+        where: { id_usuario: otroUsuarioId } 
+      });
+      
+      if (receptor?.push_token) {
+        await this.notificationService.sendPushNotification(
+          receptor.push_token,
+          '❌ Intercambio cancelado',
+          `${usuarioCancelo.nombre_usuario} ha cancelado el intercambio`,
+          { 
+            type: 'exchange_cancelled',
+            exchangeId: intercambioId,
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error enviando push notification:', error);
+    }
   }
 
   /**

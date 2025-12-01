@@ -35,7 +35,8 @@ export interface ExchangeInfo {
 }
 
 export function useChatExchange(chatId: number, currentUserId?: number) {
-  const [exchange, setExchange] = useState<ExchangeInfo | null>(null);
+  const [exchanges, setExchanges] = useState<ExchangeInfo[]>([]);
+  const [selectedExchange, setSelectedExchange] = useState<ExchangeInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [canSelectBook, setCanSelectBook] = useState(false);
   const lastStatusRef = useRef<string>(''); // Para rastrear el último estado
@@ -58,26 +59,56 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
   const loadExchangeInfo = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${buildApiUrl('')}/chat/${chatId}/exchange`);
+      const url = `${buildApiUrl('')}/chat/${chatId}/exchanges`;
+      console.log('[useChatExchange] Fetching from:', url);
+      
+      const response = await fetch(url);
+      
+      console.log('[useChatExchange] Response status:', response.status);
       
       if (!response.ok) {
-        throw new Error('Error al cargar información del intercambio');
+        const errorText = await response.text();
+        console.error('[useChatExchange] Error response:', errorText);
+        throw new Error('Error al cargar información de intercambios');
       }
 
       const data = await response.json();
+      console.log('[useChatExchange] Data received:', data);
       
-      if (data.success && data.data) {
-        setExchange(data.data);
+      if (data.success && data.data && data.data.length > 0) {
+        console.log('[useChatExchange] Found', data.data.length, 'exchanges');
+        setExchanges(data.data);
         
-        const isReceiver = currentUserId === data.data.id_usuario_solicitante_receptor;
-        const hasNoOfferedBook = !data.data.id_libro_ofertado;
-        setCanSelectBook(isReceiver && hasNoOfferedBook);
+        // Si no hay intercambio seleccionado, seleccionar el primero
+        if (!selectedExchange) {
+          const firstExchange = data.data[0];
+          setSelectedExchange(firstExchange);
+          
+          const isReceiver = currentUserId === firstExchange.id_usuario_solicitante_receptor;
+          const hasNoOfferedBook = !firstExchange.id_libro_ofertado;
+          setCanSelectBook(isReceiver && hasNoOfferedBook);
+        } else {
+          // Actualizar el intercambio seleccionado con los nuevos datos
+          const updatedSelectedExchange = data.data.find(
+            (ex: ExchangeInfo) => ex.id_intercambio === selectedExchange.id_intercambio
+          );
+          if (updatedSelectedExchange) {
+            setSelectedExchange(updatedSelectedExchange);
+            
+            const isReceiver = currentUserId === updatedSelectedExchange.id_usuario_solicitante_receptor;
+            const hasNoOfferedBook = !updatedSelectedExchange.id_libro_ofertado;
+            setCanSelectBook(isReceiver && hasNoOfferedBook);
+          }
+        }
       } else {
-        setExchange(null);
+        console.log('[useChatExchange] No exchanges found');
+        setExchanges([]);
+        setSelectedExchange(null);
       }
     } catch (error) {
       console.error('[useChatExchange] Error:', error);
-      setExchange(null);
+      setExchanges([]);
+      setSelectedExchange(null);
     } finally {
       setLoading(false);
     }
@@ -85,7 +116,7 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
 
   const loadExchangeInfoSilent = async () => {
     try {
-      const response = await fetch(`${buildApiUrl('')}/chat/${chatId}/exchange-status`);
+      const response = await fetch(`${buildApiUrl('')}/chat/${chatId}/exchanges`);
       
       if (!response.ok) {
         return;
@@ -95,14 +126,13 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
       
       if (data.success && data.data) {
         // Crear un hash del estado actual para comparar
-        const currentStatusHash = JSON.stringify({
-          id_libro_ofertado: data.data.id_libro_ofertado,
-          confirmacion_solicitante: data.data.confirmacion_solicitante,
-          confirmacion_receptor: data.data.confirmacion_receptor,
-          ubicacion_encuentro_nombre: data.data.ubicacion_encuentro_nombre,
-          ubicacion_encuentro_lat: data.data.ubicacion_encuentro_lat,
-          ubicacion_encuentro_lng: data.data.ubicacion_encuentro_lng,
-        });
+        const currentStatusHash = JSON.stringify(data.data.map((ex: ExchangeInfo) => ({
+          id: ex.id_intercambio,
+          id_libro_ofertado: ex.id_libro_ofertado,
+          confirmacion_solicitante: ex.confirmacion_solicitante,
+          confirmacion_receptor: ex.confirmacion_receptor,
+          ubicacion_encuentro_nombre: ex.ubicacion_encuentro_nombre,
+        })));
         
         // Solo recargar si el hash cambió
         if (lastStatusRef.current !== currentStatusHash) {
@@ -115,15 +145,26 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
     }
   };
 
+  const selectExchange = (exchangeId: number) => {
+    const exchange = exchanges.find(ex => ex.id_intercambio === exchangeId);
+    if (exchange) {
+      setSelectedExchange(exchange);
+      
+      const isReceiver = currentUserId === exchange.id_usuario_solicitante_receptor;
+      const hasNoOfferedBook = !exchange.id_libro_ofertado;
+      setCanSelectBook(isReceiver && hasNoOfferedBook);
+    }
+  };
+
   const selectOfferedBook = async (bookId: number) => {
-    if (!exchange || !canSelectBook) {
+    if (!selectedExchange || !canSelectBook) {
       Alert.alert('Error', 'No puedes seleccionar un libro en este momento');
       return false;
     }
 
     try {
       const response = await fetch(
-        `${buildApiUrl('')}/api/exchange/${exchange.id_intercambio}/offer-book`,
+        `${buildApiUrl('')}/api/exchange/${selectedExchange.id_intercambio}/offer-book`,
         {
           method: 'PUT',
           headers: {
@@ -156,9 +197,12 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
   };
 
   return {
-    exchange,
+    exchanges,
+    selectedExchange,
+    exchange: selectedExchange, // Para compatibilidad con código existente
     loading,
     canSelectBook,
+    selectExchange,
     selectOfferedBook,
     reloadExchange: loadExchangeInfo,
   };

@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Chat, ChatUsuario, Mensaje } from './chat.entity';
 import { Usuario } from '../entities/user.entity';
-import { Intercambio } from '../entities/exchange.entity';
+import { Intercambio, EstadoPropuesta } from '../entities/exchange.entity';
 import { Libro } from '../entities/book.entity';
 import { CreateChatDto, SendMessageDto, ChatPreviewDto, MessageDto } from './chat.dto';
 import { NotificationService } from '../notifications/notification.service'; // ✅ Ruta corregida
@@ -410,6 +410,96 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
   }
 
   /**
+   * Obtener TODOS los intercambios entre los dos usuarios de un chat
+   * Permite múltiples intercambios en el mismo chat
+   */
+  async getChatExchanges(chatId: number) {
+    // Obtener los usuarios del chat
+    const chatUsuarios = await this.chatUsuarioRepository.find({
+      where: { id_chat: chatId },
+      relations: ['usuario'],
+    });
+
+    if (chatUsuarios.length < 2) {
+      return [];
+    }
+
+    const userId1 = chatUsuarios[0].id_usuario;
+    const userId2 = chatUsuarios[1].id_usuario;
+
+    // Buscar todos los intercambios entre estos dos usuarios
+    // Solo se muestran intercambios aceptados o completados (no pending ni rejected)
+    // Los intercambios pending deben ser aceptados primero mediante notificación
+    const intercambios = await this.intercambioRepository
+      .createQueryBuilder('intercambio')
+      .leftJoinAndSelect('intercambio.libro_solicitado', 'libro_solicitado')
+      .leftJoinAndSelect('libro_solicitado.imagenes', 'imagenes_solicitado')
+      .leftJoinAndSelect('libro_solicitado.propietario', 'propietario_solicitado')
+      .leftJoinAndSelect('intercambio.libro_ofertado', 'libro_ofertado')
+      .leftJoinAndSelect('libro_ofertado.imagenes', 'imagenes_ofertado')
+      .leftJoinAndSelect('libro_ofertado.propietario', 'propietario_ofertado')
+      .leftJoinAndSelect('intercambio.usuario_solicitante', 'usuario_solicitante')
+      .leftJoinAndSelect('intercambio.usuario_solicitante_receptor', 'usuario_receptor')
+      .where(
+        '((intercambio.id_usuario_solicitante_fk = :userId1 AND intercambio.id_usuario_solicitante_receptor_fk = :userId2) OR ' +
+        '(intercambio.id_usuario_solicitante_fk = :userId2 AND intercambio.id_usuario_solicitante_receptor_fk = :userId1))',
+        { userId1, userId2 }
+      )
+      .andWhere('intercambio.estado_propuesta IN (:...estados)', {
+        estados: ['accepted', 'completed']
+      })
+      .orderBy('intercambio.fecha_propuesta', 'DESC')
+      .getMany();
+
+    return intercambios.map(intercambio => ({
+      id_intercambio: intercambio.id_intercambio,
+      id_libro_solicitado: intercambio.id_libro_solicitado_fk,
+      id_libro_ofertado: intercambio.id_libro_ofertado_fk,
+      id_usuario_solicitante: intercambio.id_usuario_solicitante_fk,
+      id_usuario_solicitante_receptor: intercambio.id_usuario_solicitante_receptor_fk,
+      estado_propuesta: intercambio.estado_propuesta,
+      // Campos de ubicación de encuentro
+      ubicacion_encuentro_lat: intercambio.ubicacion_encuentro_lat,
+      ubicacion_encuentro_lng: intercambio.ubicacion_encuentro_lng,
+      ubicacion_encuentro_nombre: intercambio.ubicacion_encuentro_nombre,
+      ubicacion_encuentro_direccion: intercambio.ubicacion_encuentro_direccion,
+      ubicacion_encuentro_place_id: intercambio.ubicacion_encuentro_place_id,
+      // Campos de confirmación bilateral
+      confirmacion_solicitante: intercambio.confirmacion_solicitante,
+      confirmacion_receptor: intercambio.confirmacion_receptor,
+      // Nombres de usuarios
+      nombre_usuario_solicitante: intercambio.usuario_solicitante.nombre_usuario,
+      nombre_usuario_receptor: intercambio.usuario_solicitante_receptor.nombre_usuario,
+      libro_solicitado: {
+        id_libro: intercambio.libro_solicitado.id_libro,
+        titulo: intercambio.libro_solicitado.titulo,
+        autor: intercambio.libro_solicitado.autor,
+        descripcion: intercambio.libro_solicitado.descripcion,
+        imagenes: intercambio.libro_solicitado.imagenes.map(img => ({
+          url_imagen: img.url_imagen,
+        })),
+        propietario: {
+          id_usuario: intercambio.libro_solicitado.propietario.id_usuario,
+          nombre_usuario: intercambio.libro_solicitado.propietario.nombre_usuario,
+        },
+      },
+      libro_ofertado: intercambio.libro_ofertado ? {
+        id_libro: intercambio.libro_ofertado.id_libro,
+        titulo: intercambio.libro_ofertado.titulo,
+        autor: intercambio.libro_ofertado.autor,
+        descripcion: intercambio.libro_ofertado.descripcion,
+        imagenes: intercambio.libro_ofertado.imagenes.map(img => ({
+          url_imagen: img.url_imagen,
+        })),
+        propietario: {
+          id_usuario: intercambio.libro_ofertado.propietario.id_usuario,
+          nombre_usuario: intercambio.libro_ofertado.propietario.nombre_usuario,
+        },
+      } : null,
+    }));
+  }
+
+  /**
    * Verificar si un usuario pertenece a un chat
    */
   async verifyUserInChat(chatId: number, userId: number): Promise<boolean> {
@@ -436,5 +526,64 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
       email: p.usuario.email,
       foto_perfil_url: p.usuario.foto_perfil_url ?? undefined,
     }));
+  }
+
+  /**
+   * Borrar chat y cancelar todos los intercambios relacionados
+   * 1. Verifica que el usuario pertenece al chat
+   * 2. Obtiene todos los intercambios entre los usuarios del chat
+   * 3. Cancela (rechaza) todos los intercambios activos
+   * 4. Elimina mensajes, usuarios del chat, y finalmente el chat
+   */
+  async deleteChat(chatId: number, userId: number): Promise<void> {
+    // Verificar que el usuario pertenece al chat
+    const isMember = await this.verifyUserInChat(chatId, userId);
+    if (!isMember) {
+      throw new ForbiddenException('No tienes permiso para eliminar este chat');
+    }
+
+    // Obtener participantes del chat
+    const chatUsuarios = await this.chatUsuarioRepository.find({
+      where: { id_chat: chatId },
+      relations: ['usuario'],
+    });
+
+    if (chatUsuarios.length !== 2) {
+      throw new BadRequestException('El chat debe tener exactamente 2 participantes');
+    }
+
+    const userId1 = chatUsuarios[0].id_usuario;
+    const userId2 = chatUsuarios[1].id_usuario;
+
+    // Buscar TODOS los intercambios entre estos usuarios (bidireccional)
+    const intercambios = await this.intercambioRepository
+      .createQueryBuilder('intercambio')
+      .where(
+        '((intercambio.id_usuario_solicitante_fk = :userId1 AND intercambio.id_usuario_solicitante_receptor_fk = :userId2) OR (intercambio.id_usuario_solicitante_fk = :userId2 AND intercambio.id_usuario_solicitante_receptor_fk = :userId1))',
+        { userId1, userId2 }
+      )
+      .andWhere('intercambio.estado_propuesta IN (:...estados)', { 
+        estados: ['pending', 'accepted', 'completed'] 
+      })
+      .getMany();
+
+    // Cancelar todos los intercambios activos (cambiar estado a 'rejected')
+    for (const intercambio of intercambios) {
+      intercambio.estado_propuesta = EstadoPropuesta.REJECTED;
+      await this.intercambioRepository.save(intercambio);
+      console.log(`[deleteChat] Intercambio ${intercambio.id_intercambio} cancelado`);
+    }
+
+    // Eliminar mensajes del chat
+    await this.mensajeRepository.delete({ id_chat: chatId });
+    console.log(`[deleteChat] Mensajes del chat ${chatId} eliminados`);
+
+    // Eliminar relaciones chat_usuario
+    await this.chatUsuarioRepository.delete({ id_chat: chatId });
+    console.log(`[deleteChat] Usuarios del chat ${chatId} eliminados`);
+
+    // Eliminar el chat
+    await this.chatRepository.delete({ id_chat: chatId });
+    console.log(`[deleteChat] Chat ${chatId} eliminado`);
   }
 }

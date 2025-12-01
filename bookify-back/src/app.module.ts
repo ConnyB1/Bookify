@@ -10,6 +10,8 @@ import { ChatModule } from './chat/chat.module';
 import { ExchangeModule } from './intercambio/intercambio.module';
 import { NotificationModule } from './notifications/notification.module';
 import { UserModule } from './user/user.module';
+import { RatingModule } from './rating/rating.module';
+import { GeneroModule } from './genero/genero.module';
 
 @Module({
   imports: [
@@ -44,6 +46,8 @@ import { UserModule } from './user/user.module';
     ExchangeModule,
     NotificationModule,
     UserModule,
+    RatingModule,
+    GeneroModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -15,17 +15,65 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
+import CustomAlert, { AlertButton } from '../../components/CustomAlert';
+import { Ionicons } from '@expo/vector-icons';
+
+const useAlertDialog = () => {
+  const [alertConfig, setAlertConfig] = React.useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [],
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    buttons: AlertButton[] = [{ text: 'OK', onPress: () => {} }]
+  ) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      buttons: buttons.map(btn => ({
+        ...btn,
+        onPress: () => {
+          btn.onPress();
+          setAlertConfig(prev => ({ ...prev, visible: false }));
+        }
+      })),
+    });
+  };
+
+  const AlertDialog = () => (
+    <CustomAlert
+      visible={alertConfig.visible}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      buttons={alertConfig.buttons}
+      onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+    />
+  );
+
+  return { showAlert, AlertDialog };
+};
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  const { showAlert, AlertDialog } = useAlertDialog();
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!nombreUsuario || !password) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      showAlert('Error', 'Por favor completa todos los campos');
       return;
     }
 
@@ -48,14 +96,24 @@ export default function LoginScreen() {
         // Guardar en el contexto de autenticación
         await login(result.data.user, result.data.tokens);
         
-        // Redirigir al inicio
-        router.replace('/(tabs)/Inicio');
+        showAlert(
+          '¡Inicio de Sesión Exitoso!',
+          'Bienvenido de nuevo a Bookify',
+          [
+            {
+              text: 'Continuar',
+              onPress: () => {
+                router.replace('/(tabs)/Inicio');
+              }
+            }
+          ]
+        );
       } else {
-        Alert.alert('Error', result.message || 'Credenciales inválidas');
+        showAlert('Error', result.message || 'Credenciales inválidas');
       }
     } catch (error) {
       console.error('Error en login:', error);
-      Alert.alert('Error', 'No se pudo conectar con el servidor');
+      showAlert('Error', 'No se pudo conectar con el servidor');
     } finally {
       setLoading(false);
     }
@@ -127,6 +185,7 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <AlertDialog />
     </SafeAreaView>
   );
 }

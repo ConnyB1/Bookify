@@ -18,6 +18,7 @@ import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface LibroImagen {
   id_imagen: number;
@@ -46,58 +47,38 @@ export default function InicioScreen() {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [userGenrePreferences, setUserGenrePreferences] = useState<number[]>([]);
   const router = useRouter(); 
   const { user } = useAuth(); 
   
   const filteredBooks = useMemo(() => {
-    console.log('[DEBUG] Current filter:', currentFilter);
-    console.log('[DEBUG] Total books:', books.length);
-    console.log('[DEBUG] Current user ID:', user?.id_usuario);
-    
-    // Primero filtrar los libros que NO son del usuario actual
-    const booksNotOwned = books.filter(book => {
-      const isNotOwner = book.id_propietario !== user?.id_usuario;
-      if (!isNotOwner) {
-        console.log('[DEBUG] Filtrando libro propio:', book.titulo, 'ID propietario:', book.id_propietario);
-      }
-      return isNotOwner;
-    });
-    
-    console.log('[DEBUG] Books after filtering owner:', booksNotOwned.length);
+    const booksNotOwned = books.filter(book => book.id_propietario !== user?.id_usuario);
     
     switch (currentFilter) {
-      case 'favorites':
-        const favorites = booksNotOwned.filter(book => book.isFavorite);
-        console.log('[DEBUG] Favorites count:', favorites.length);
-        return favorites;
+      case 'for-you':
+        if (userGenrePreferences.length === 0) {
+          return [];
+        }
+        
+        return booksNotOwned.filter(book => 
+          book.generos?.some(genero => userGenrePreferences.includes(genero.id_genero))
+        );
       case 'all':
       default:
-        console.log('[DEBUG] Showing all books (except user\'s own)');
         return booksNotOwned;
     }
-  }, [currentFilter, books, user?.id_usuario]);
+  }, [currentFilter, books, user?.id_usuario, userGenrePreferences]);
 
   const fetchBooks = async () => {
     try {
       setLoading(true);
-      // Pasar userId si existe para filtrar por proximidad
       const queryParam = user?.id_usuario ? `?userId=${user.id_usuario}` : '';
       const url = buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS + queryParam);
-      console.log('[DEBUG] Fetching books from URL:', url);
       
       const response = await fetch(url);
-      console.log('[DEBUG] Response status:', response.status);
-      console.log('[DEBUG] Response headers:', response.headers);
-      
-      const textResponse = await response.text();
-      console.log('[DEBUG] Raw response:', textResponse.substring(0, 200));
-      
-      const result = JSON.parse(textResponse);
-      console.log('[DEBUG] Response from API:', result);
+      const result = await response.json();
       
       if (result.success && result.data) {
-        console.log('[DEBUG] Books received:', result.data);
-        console.log('[DEBUG] First book images:', result.data[0]?.imagenes);
         setBooks(result.data);
       } else {
         console.error('Error fetching books:', result.message);
@@ -113,7 +94,36 @@ export default function InicioScreen() {
 
   useEffect(() => {
     fetchBooks();
-  }, []);
+    loadUserGenrePreferences();
+  }, [user?.id_usuario]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserGenrePreferences();
+    }, [user?.id_usuario])
+  );
+
+  const loadUserGenrePreferences = async () => {
+    if (!user?.id_usuario) {
+      return;
+    }
+    
+    try {
+      const url = buildApiUrl(`/users/${user.id_usuario}/genre-preferences`);
+      const response = await fetch(url);
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const genreIds = result.data.genreIds || [];
+        setUserGenrePreferences(genreIds);
+      } else {
+        setUserGenrePreferences([]);
+      }
+    } catch (error) {
+      console.error('Error loading genre preferences:', error);
+      setUserGenrePreferences([]);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -155,48 +165,57 @@ export default function InicioScreen() {
               
               <Ionicons name="book-outline" size={80} color="#666" />
               <ThemedText style={styles.emptyTitle}>
-                {currentFilter === 'favorites' ? 'Sin favoritos' : 'No hay libros disponibles'}
+                {currentFilter === 'for-you'
+                  ? 'No hay libros para ti'
+                  : 'No hay libros disponibles'}
               </ThemedText>
               <ThemedText style={styles.emptySubtitle}>
-                {currentFilter === 'favorites' 
-                  ? 'Aún no has marcado ningún libro como favorito' 
+                {currentFilter === 'for-you'
+                  ? userGenrePreferences.length === 0
+                    ? 'Configura tus preferencias de géneros en tu perfil'
+                    : 'No hay libros disponibles de tus géneros favoritos'
                   : 'Desliza hacia abajo para actualizar'}
               </ThemedText>
             </View>
           ) : (
-            <>
-              {console.log('[DEBUG] Rendering FlatList with', filteredBooks.length, 'books')}
-              <FlatList
-                data={filteredBooks}
-                renderItem={({ item }) => {
-                  console.log('[DEBUG] Rendering book:', item.titulo);
-                  return (
-                    <BookItem 
-                      id={item.id_libro} 
-                      title={item.titulo} 
-                      image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
-                      genres={item.generos?.map(g => g.nombre) || []}
-                      distance={item.distancia_km}
-                      onInfoPress={handleBookInfoPress}
-                    />
-                  );
-                }}
-                keyExtractor={(item) => item.id_libro.toString()}
-                numColumns={2}
-                columnWrapperStyle={{justifyContent: 'flex-start'}}
-                contentContainerStyle={styles.listContainer}
-                refreshControl={
-                  <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={onRefresh}
-                    colors={['#d500ff']} 
-                    tintColor="#d500ff" 
-                    title="Actualizando libros..." 
-                    titleColor="#d500ff"
-                  />
-                }
-              />
-            </>
+            <FlatList
+              data={filteredBooks}
+              renderItem={({ item }) => (
+                <BookItem
+                  id={item.id_libro} 
+                  title={item.titulo} 
+                  image={item.imagenes && item.imagenes.length > 0 ? item.imagenes[0].url_imagen : 'https://via.placeholder.com/150x200?text=Sin+Imagen'} 
+                  genres={item.generos?.map(g => g.nombre) || []}
+                  distance={item.distancia_km}
+                  onInfoPress={handleBookInfoPress}
+                />
+              )}
+              keyExtractor={(item) => item.id_libro.toString()}
+              numColumns={2}
+              columnWrapperStyle={{justifyContent: 'flex-start'}}
+              contentContainerStyle={styles.listContainer}
+              // Performance optimizations
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              updateCellsBatchingPeriod={50}
+              initialNumToRender={10}
+              windowSize={10}
+              getItemLayout={(data, index) => ({
+                length: 280, // Approximate height of BookItem
+                offset: 280 * Math.floor(index / 2),
+                index,
+              })}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#d500ff']} 
+                  tintColor="#d500ff" 
+                  title="Actualizando libros..." 
+                  titleColor="#d500ff"
+                />
+              }
+            />
           )}
         </ThemedView>
       </SafeAreaView>

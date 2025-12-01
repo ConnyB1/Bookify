@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getGenreColor } from '../utils/genreColors';
 
 type FilterOption = {
@@ -11,8 +12,8 @@ type FilterOption = {
 };
 
 const defaultFilterOptions: FilterOption[] = [
-  { id: 'all', label: 'All Titles', icon: 'apps' },
-  { id: 'favorites', label: 'For You', icon: 'heart' },
+  { id: 'all', label: 'Todos los títulos', icon: 'apps' },
+  { id: 'for-you', label: 'Para ti', icon: 'heart' },
 ];
 
 const genreFilterOptions: FilterOption[] = [
@@ -57,18 +58,118 @@ const FilterButtons: React.FC<FilterButtonsProps> = ({
         style={styles.filtersContainer}
         contentContainerStyle={styles.filtersContent}
       >
-        {filterOptions.map((filter) => (
+        {filterOptions.map((filter) => {
+          const isActive = activeFilter === filter.id;
+          const isGenre = filter.isGenre;
+          
+          if (isActive && !isGenre) {
+            return (
+              <LinearGradient
+                key={filter.id}
+                colors={['#6100BD', '#D500FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.filterButton, { backgroundColor: 'transparent' }]}
+              >
+                <TouchableOpacity
+                  style={styles.filterButtonContent}
+                  onPress={() => handleFilterPress(filter.id)}
+                  activeOpacity={0.7}
+                >
+                  {filter.icon && (
+                    <Ionicons 
+                      name={filter.icon} 
+                      size={16} 
+                      color="white" 
+                    />
+                  )}
+                  <Text style={[
+                    styles.filterButtonText,
+                    filter.icon && styles.filterButtonTextWithIcon
+                  ]}>
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              </LinearGradient>
+            );
+          }
+          
+          return (
+            <TouchableOpacity
+              key={filter.id}
+              style={[
+                styles.filterButton,
+                isGenre && { 
+                  backgroundColor: isActive ? getGenreColor(filter.id) : '#333',
+                  borderColor: getGenreColor(filter.id),
+                  borderWidth: isActive ? 0 : 1,
+                }
+              ]}
+              onPress={() => handleFilterPress(filter.id)}
+              activeOpacity={0.7}
+            >
+              {filter.icon && (
+                <Ionicons 
+                  name={filter.icon} 
+                  size={16} 
+                  color="white" 
+                />
+              )}
+              <Text style={[
+                styles.filterButtonText,
+                filter.icon && styles.filterButtonTextWithIcon
+              ]}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    );
+  }
+
+  // Para pantallas básicas (Inicio), usar diseño original
+  return (
+    <View style={styles.filtersContainerRow}>
+      {filterOptions.map((filter) => {
+        const isActive = activeFilter === filter.id;
+        
+        if (isActive) {
+          return (
+            <LinearGradient
+              key={filter.id}
+              colors={['#6100BD', '#D500FF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.filterButton, { backgroundColor: 'transparent' }]}
+            >
+              <TouchableOpacity
+                style={styles.filterButtonContent}
+                onPress={() => handleFilterPress(filter.id)}
+                activeOpacity={0.7}
+              >
+                {filter.icon && (
+                  <Ionicons 
+                    name={filter.icon} 
+                    size={16} 
+                    color="white" 
+                  />
+                )}
+                <Text style={[
+                  styles.filterButtonText,
+                  filter.icon && styles.filterButtonTextWithIcon
+                ]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          );
+        }
+        
+        return (
           <TouchableOpacity
             key={filter.id}
-            style={[
-              styles.filterButton,
-              filter.isGenre && { 
-                backgroundColor: activeFilter === filter.id ? getGenreColor(filter.id) : '#333',
-                borderColor: getGenreColor(filter.id),
-                borderWidth: activeFilter === filter.id ? 0 : 1,
-              },
-              activeFilter === filter.id && !filter.isGenre && styles.activeFilter
-            ]}
+            style={styles.filterButton}
             onPress={() => handleFilterPress(filter.id)}
             activeOpacity={0.7}
           >
@@ -86,39 +187,8 @@ const FilterButtons: React.FC<FilterButtonsProps> = ({
               {filter.label}
             </Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-    );
-  }
-
-  // Para pantallas básicas (Inicio), usar diseño original
-  return (
-    <View style={styles.filtersContainerRow}>
-      {filterOptions.map((filter) => (
-        <TouchableOpacity
-          key={filter.id}
-          style={[
-            styles.filterButton,
-            activeFilter === filter.id && styles.activeFilter
-          ]}
-          onPress={() => handleFilterPress(filter.id)}
-          activeOpacity={0.7}
-        >
-          {filter.icon && (
-            <Ionicons 
-              name={filter.icon} 
-              size={16} 
-              color="white" 
-            />
-          )}
-          <Text style={[
-            styles.filterButtonText,
-            filter.icon && styles.filterButtonTextWithIcon
-          ]}>
-            {filter.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+        );
+      })}
     </View>
   );
 };
@@ -142,9 +212,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 20,
     marginRight: 10,
+    overflow: 'hidden',
   },
-  activeFilter: {
-    backgroundColor: '#8A2BE2', // Color púrpura similar al original
+  filterButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   filterButtonText: {
     color: 'white',

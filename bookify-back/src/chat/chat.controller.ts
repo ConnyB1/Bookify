@@ -2,6 +2,7 @@ import {
   Controller, 
   Get, 
   Post, 
+  Delete,
   Body, 
   Param, 
   Query,
@@ -137,6 +138,29 @@ export class ChatController {
   }
 
   /**
+   * Obtener TODOS los intercambios entre los dos usuarios del chat
+   * GET /chat/:chatId/exchanges
+   * IMPORTANTE: Esta ruta debe ir ANTES de :chatId/exchange para evitar conflictos
+   */
+  @Get(':chatId/exchanges')
+  async getChatExchanges(@Param('chatId') chatId: string) {
+    try {
+      const exchanges = await this.chatService.getChatExchanges(Number(chatId));
+      return {
+        success: true,
+        data: exchanges,
+      };
+    } catch (error) {
+      console.error('[getChatExchanges]', error);
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      };
+    }
+  }
+
+  /**
    * Obtener información del intercambio asociado al chat
    * GET /chat/:chatId/exchange
    */
@@ -244,6 +268,41 @@ export class ChatController {
       return {
         success: false,
         message: error.message || 'Error al obtener payload del chat',
+      };
+    }
+  }
+
+  /**
+   * Borrar chat y cancelar todos los intercambios relacionados
+   * DELETE /chat/:chatId?userId=123
+   */
+  @Delete(':chatId')
+  @HttpCode(HttpStatus.OK)
+  async deleteChat(
+    @Param('chatId') chatId: string,
+    @Query('userId') userId: string,
+  ) {
+    try {
+      const uid = Number(userId);
+      const cid = Number(chatId);
+
+      if (!uid) {
+        return { 
+          success: false, 
+          message: 'Usuario no autenticado' 
+        };
+      }
+
+      await this.chatService.deleteChat(cid, uid);
+
+      return {
+        success: true,
+        message: 'Chat eliminado exitosamente',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Error al eliminar chat',
       };
     }
   }

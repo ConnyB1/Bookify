@@ -15,6 +15,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useChatListener } from '../../hooks/useChatListener';
+import CustomAlert from '../../components/CustomAlert';
+import { useAlertDialog } from '../../hooks/useAlertDialog';
 
 interface ChatPreview {
   id_chat: number;
@@ -32,6 +34,9 @@ export default function ChatListScreen() {
   const [chats, setChats] = useState<ChatPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
 
   // Listener para nuevos chats
   const handleNewChat = useCallback(() => {
@@ -94,30 +99,100 @@ export default function ChatListScreen() {
 
   const renderChatItem = ({ item }: { item: ChatPreview }) => {
     const timeAgo = getTimeAgo(item.timestamp);
+    const isDeleting = deletingChatId === item.id_chat;
 
     return (
-      <TouchableOpacity
-        style={styles.chatItem}
-        onPress={() => router.push(`/chat/${item.id_chat}?userName=${encodeURIComponent(item.otherUserName)}&otherUserId=${item.otherUserId}&otherUserPhoto=${encodeURIComponent(item.otherUserPhoto || '')}`)}
-      >
-        <View style={styles.avatar}>
-          {item.otherUserPhoto ? (
-            <Image source={{ uri: item.otherUserPhoto }} style={styles.avatarImage} />
-          ) : (
-            <Ionicons name="person" size={55} />
-          )}
-        </View>
-
-        <View style={styles.chatInfo}>
-          <View style={styles.chatHeader}>
-            <Text style={styles.chatName}>{item.otherUserName}</Text>
-            <Text style={styles.timestamp}>{timeAgo}</Text>
+      <View style={styles.chatItemContainer}>
+        <TouchableOpacity
+          style={styles.chatItem}
+          onPress={() => router.push(`/chat/${item.id_chat}?userName=${encodeURIComponent(item.otherUserName)}&otherUserId=${item.otherUserId}&otherUserPhoto=${encodeURIComponent(item.otherUserPhoto || '')}`)}
+          disabled={isDeleting}
+        >
+          <View style={styles.avatar}>
+            {item.otherUserPhoto ? (
+              <Image source={{ uri: item.otherUserPhoto }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="person" size={55} />
+            )}
           </View>
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage}
-          </Text>
-        </View>
-      </TouchableOpacity>
+
+          <View style={styles.chatInfo}>
+            <View style={styles.chatHeader}>
+              <Text style={styles.chatName}>{item.otherUserName}</Text>
+              <Text style={styles.timestamp}>{timeAgo}</Text>
+            </View>
+            <Text style={styles.lastMessage} numberOfLines={1}>
+              {item.lastMessage}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        
+        {editMode && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => deleteChat(item.id_chat, item.otherUserName)}
+            disabled={isDeleting}
+            activeOpacity={0.7}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color="#ff4444" />
+            ) : (
+              <Ionicons name="trash-outline" size={22} color="#ff4444" />
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const deleteChat = async (chatId: number, chatName: string) => {
+    showAlert(
+      '¿Eliminar chat?',
+      `¿Estás seguro de que quieres eliminar la conversación con ${chatName}? Todos los intercambios activos con este usuario serán cancelados. Esta acción no se puede deshacer.`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: hideAlert,
+        },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            hideAlert();
+            setDeletingChatId(chatId);
+            try {
+              const response = await fetch(
+                buildApiUrl(`/chat/${chatId}?userId=${user?.id_usuario}`),
+                {
+                  method: 'DELETE',
+                }
+              );
+              const result = await response.json();
+              
+              if (result.success) {
+                // Eliminar del estado local
+                setChats(prevChats => prevChats.filter(c => c.id_chat !== chatId));
+              } else {
+                showAlert(
+                  'Error',
+                  result.message || 'No se pudo eliminar el chat',
+                  [{ text: 'OK', style: 'default', onPress: hideAlert }]
+                );
+              }
+            } catch (error) {
+              console.error('Error deleting chat:', error);
+              showAlert(
+                'Error',
+                'Ocurrió un error al eliminar el chat',
+                [{ text: 'OK', style: 'default', onPress: hideAlert }]
+              );
+            } finally {
+              setDeletingChatId(null);
+            }
+          },
+        },
+      ]
     );
   };
 
@@ -171,9 +246,29 @@ export default function ChatListScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chats</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Chats</Text>
+          {chats.length > 0 && (
+            <TouchableOpacity
+              style={[styles.settingsButton, editMode && styles.settingsButtonActive]}
+              onPress={() => setEditMode(!editMode)}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={editMode ? "close-circle" : "settings-outline"} 
+                size={24} 
+                color={editMode ? "#ff4444" : "#999"} 
+              />
+            </TouchableOpacity>
+          )}
+        </View>
         {chats.length > 0 && (
-          <Text style={styles.headerSubtitle}>{chats.length} conversación{chats.length !== 1 ? 'es' : ''}</Text>
+          <Text style={styles.headerSubtitle}>
+            {editMode 
+              ? 'Modo edición activado' 
+              : `${chats.length} conversación${chats.length !== 1 ? 'es' : ''}`
+            }
+          </Text>
         )}
       </View>
 
@@ -209,6 +304,14 @@ export default function ChatListScreen() {
           }
         />
       )}
+
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }
@@ -226,10 +329,26 @@ const styles = StyleSheet.create({
     borderBottomColor: '#333',
     backgroundColor: '#151718',
   },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: '#2a2a2a',
+  },
+  settingsButtonActive: {
+    backgroundColor: '#3a1a1a',
   },
   headerSubtitle: {
     fontSize: 13,
@@ -282,17 +401,33 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingVertical: 8,
   },
+  chatItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginVertical: 4,
+  },
   chatItem: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: '#151718',
-    marginHorizontal: 16,
-    marginVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#2a2a2a',
+  },
+  deleteButton: {
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    backgroundColor: '#2a1a1a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#3a2a2a',
   },
   avatar: {
     width: 54,
@@ -318,6 +453,7 @@ const styles = StyleSheet.create({
   },
   chatInfo: {
     flex: 1,
+    minWidth: 0,
   },
   chatHeader: {
     flexDirection: 'row',

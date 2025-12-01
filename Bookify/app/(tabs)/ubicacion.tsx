@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,60 @@ import { buildApiUrl } from '@/config/api';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { router, Stack } from 'expo-router';
+import CustomAlert, { AlertButton } from '@/components/CustomAlert';
+
+const useAlertDialog = () => {
+  const [alertConfig, setAlertConfig] = React.useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    buttons: AlertButton[];
+    iconName?: keyof typeof Ionicons.glyphMap;
+    iconColor?: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [],
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    buttons: AlertButton[] = [{ text: 'OK', onPress: () => {} }],
+    iconName?: keyof typeof Ionicons.glyphMap,
+    iconColor?: string
+  ) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      buttons: buttons.map(btn => ({
+        ...btn,
+        onPress: () => {
+          btn.onPress();
+          setAlertConfig(prev => ({ ...prev, visible: false }));
+        }
+      })),
+      iconName,
+      iconColor,
+    });
+  };
+
+  const AlertDialog = () => (
+    <CustomAlert
+      visible={alertConfig.visible}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      buttons={alertConfig.buttons}
+      onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+      iconName={alertConfig.iconName}
+      iconColor={alertConfig.iconColor}
+    />
+  );
+
+  return { showAlert, AlertDialog };
+};
 
 interface UserLocation {
   latitud: number | null;
@@ -27,6 +82,7 @@ interface UserLocation {
 
 export default function LocationSettingsScreen() {
   const { user, syncUserFromBackend } = useAuth();
+  const { showAlert, AlertDialog } = useAlertDialog();
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -62,10 +118,10 @@ export default function LocationSettingsScreen() {
   const requestLocationPermission = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(
+      showAlert(
         'Permisos Denegados',
         'Necesitamos acceso a tu ubicación para mostrarte libros cercanos. Tu ubicación exacta nunca se comparte con otros usuarios.',
-        [{ text: 'OK' }]
+        [{ text: 'OK', onPress: () => {} }]
       );
       return false;
     }
@@ -102,13 +158,32 @@ export default function LocationSettingsScreen() {
         ciudad
       );
 
-      Alert.alert(
+      showAlert(
         'Ubicación Actualizada',
-        `Tu ubicación se ha configurado en ${ciudad}. Los libros ahora se mostrarán según tu radio de búsqueda.`
+        `Tu ubicación se ha configurado en ${ciudad}. Los libros ahora se mostrarán según tu radio de búsqueda.`,
+        [{ text: 'OK', onPress: () => {} }]
       );
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert('Error', 'No se pudo obtener tu ubicación. Intenta de nuevo.');
+      
+      // Verificar si el error es por timeout
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes('TimeoutException') || errorMessage.includes('timeout')) {
+        showAlert(
+          'Tiempo de Espera Agotado',
+          'La búsqueda de tu ubicación está tardando más de lo esperado. Por favor, intenta de nuevo en unos momentos.',
+          [{ text: 'Entendido', onPress: () => {} }],
+          'warning-outline',
+          '#FFD700'
+        );
+      } else {
+        showAlert(
+          'Error',
+          'No se pudo obtener tu ubicación. Verifica que tu GPS esté activado e intenta de nuevo.',
+          [{ text: 'OK', onPress: () => {} }]
+        );
+      }
     } finally {
       setUpdating(false);
     }
@@ -163,14 +238,22 @@ export default function LocationSettingsScreen() {
       const result = await response.json();
 
       if (result.success) {
-        Alert.alert('Radio Actualizado', `Ahora verás libros dentro de ${radius} km`);
+        showAlert(
+          'Radio Actualizado',
+          `Ahora verás libros dentro de ${radius} km`,
+          [{ text: 'OK', onPress: () => {} }]
+        );
         loadUserLocation();
         // ✅ FIX: Sincronizar el contexto de Auth con los datos actualizados del backend
         await syncUserFromBackend();
       }
     } catch (error) {
       console.error('Error updating radius:', error);
-      Alert.alert('Error', 'No se pudo actualizar el radio de búsqueda');
+      showAlert(
+        'Error',
+        'No se pudo actualizar el radio de búsqueda',
+        [{ text: 'OK', onPress: () => {} }]
+      );
     }
   };
 
@@ -263,23 +346,30 @@ export default function LocationSettingsScreen() {
 
           {/* Botón para obtener ubicación */}
           <View style={styles.section}>
-            <TouchableOpacity
-              style={[styles.locationButton, updating && styles.locationButtonDisabled]}
-              onPress={getCurrentLocation}
-              disabled={updating}
-            >
-              {updating ? (
-                <>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <Text style={styles.locationButtonText}>Obteniendo ubicación...</Text>
-                </>
-              ) : (
-                <>
+            {updating ? (
+              <TouchableOpacity
+                style={[styles.locationButton, styles.locationButtonDisabled]}
+                disabled={true}
+              >
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.locationButtonText}>Obteniendo ubicación...</Text>
+              </TouchableOpacity>
+            ) : (
+              <LinearGradient
+                colors={['#6100BD', '#D500FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.locationButton}
+              >
+                <TouchableOpacity
+                  style={styles.locationButtonContent}
+                  onPress={getCurrentLocation}
+                >
                   <Ionicons name="navigate" size={24} color="#fff" />
                   <Text style={styles.locationButtonText}>Usar Mi Ubicación Actual</Text>
-                </>
-              )}
-            </TouchableOpacity>
+                </TouchableOpacity>
+              </LinearGradient>
+            )}
           </View>
 
           {/* Selector de Radio */}
@@ -339,6 +429,7 @@ export default function LocationSettingsScreen() {
         <View style={styles.parellenar}>
         </View>
       </ScrollView>
+      <AlertDialog />
     </SafeAreaView>
   );
 }
@@ -353,7 +444,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingTop: 80,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
@@ -423,17 +513,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationButton: {
-    backgroundColor: '#d500ff',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  locationButtonDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#666',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 12,
     gap: 12,
   },
-  locationButtonDisabled: {
-    opacity: 0.6,
+  locationButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 12,
+    width: '100%',
   },
   locationButtonText: {
     color: '#fff',

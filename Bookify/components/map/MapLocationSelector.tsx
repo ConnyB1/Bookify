@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import {View, Text, StyleSheet, ActivityIndicator, TextInput, Alert, TouchableOpacity, ScrollView,} from 'react-native';
+import {View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, ScrollView,} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, Circle } from 'react-native-maps';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserLocation } from '../../hooks/location/useUserLocation';
 import { usePlaceSearch } from '../../hooks/location/usePlaceSearch';
 import { useLocationConfirmation } from '../../hooks/location/useLocationConfirmation';
+import { useAlertDialog } from '../../hooks/useAlertDialog';
 import { PlaceTypeFilters } from '../location/PlaceTypeFilters';
 import { PlacesList } from '../location/PlacesList';
 import { LocationConfirmation } from '../location/LocationConfirmation';
 import { LoadingScreen } from '../common/LoadingScreen';
+import CustomAlert from '../CustomAlert';
 
 type MapMode = 'osm' | 'manual';
 
@@ -34,7 +38,8 @@ export function MapLocationSelector({
 }: MapLocationSelectorProps) {
   const { location: userLocation, loading: locationLoading } = useUserLocation();
   const { places, searching, selectedPlace, searchPlaces, selectPlace } = usePlaceSearch();
-  const { confirmLocation, confirming } = useLocationConfirmation(exchangeId);
+  const { confirmLocation, confirming, alertVisible, alertConfig, hideAlert } = useLocationConfirmation(exchangeId);
+  const { showAlert: showLocalAlert, hideAlert: hideLocalAlert, alertVisible: localAlertVisible, alertConfig: localAlertConfig } = useAlertDialog();
 
   const [selectedType, setSelectedType] = useState('cafe');
   const [searchRadius, setSearchRadius] = useState(5); // Radio en km
@@ -74,6 +79,20 @@ export function MapLocationSelector({
     });
   };
 
+  const handleCancelSelection = () => {
+    selectPlace(null);
+  };
+
+  const handleRecenterMap = () => {
+    if (userLocation) {
+      setMapRegion({
+        ...userLocation,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      });
+    }
+  };
+
   const handleMapPress = (event: any) => {
     if (mode === 'manual') {
       const { latitude, longitude } = event.nativeEvent.coordinate;
@@ -101,11 +120,15 @@ export function MapLocationSelector({
       }
     } else if (mode === 'manual') {
       if (!selectedLocation) {
-        Alert.alert('Error', 'Por favor, selecciona una ubicación en el mapa');
+        showLocalAlert('Error', 'Por favor, selecciona una ubicación en el mapa', [
+          { text: 'OK', onPress: hideLocalAlert }
+        ]);
         return;
       }
       if (!locationName.trim()) {
-        Alert.alert('Error', 'Por favor, ingresa un nombre para el lugar');
+        showLocalAlert('Error', 'Por favor, ingresa un nombre para el lugar', [
+          { text: 'OK', onPress: hideLocalAlert }
+        ]);
         return;
       }
       const result = await confirmLocation({
@@ -143,14 +166,14 @@ export function MapLocationSelector({
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <MapView
         style={styles.map}
         region={mapRegion}
         onPress={handleMapPress}
         provider={PROVIDER_GOOGLE}
         showsUserLocation
-        showsMyLocationButton
+        showsMyLocationButton={false}
         mapType="standard"
       >
         {/* Círculo de radio de búsqueda */}
@@ -210,43 +233,81 @@ export function MapLocationSelector({
           />
         </View>
       )}
-      {/* Selector de radio de búsqueda */}
+      {/* Selector de radio de búsqueda y botón de geolocalización */}
       {mode === 'osm' && (
         <View style={styles.radiusContainer}>
-          <TouchableOpacity
+          {/* Botón de geolocalización */}
+          <LinearGradient
+            colors={['#6100BD', '#D500FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
             style={styles.radiusButton}
-            onPress={() => setShowRadiusSelector(!showRadiusSelector)}
-          >
-            <Ionicons name="resize-outline" size={20} color="#fff" />
-            <Text style={styles.radiusButtonText}>{searchRadius} km</Text>
-            <Ionicons 
-              name={showRadiusSelector ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color="#fff" 
-            />
-          </TouchableOpacity>
+          > 
+            <TouchableOpacity
+              style={styles.geoButton}
+              onPress={handleRecenterMap}
+            >
+              <Ionicons name="locate" size={20} color="#fff" />
+            </TouchableOpacity>
+          </LinearGradient>
 
-          {showRadiusSelector && (
-            <View style={styles.radiusOptions}>
-              {RADIUS_OPTIONS.map((radius) => (
-                <TouchableOpacity
-                  key={radius}
-                  style={[
-                    styles.radiusOption,
-                    searchRadius === radius && styles.radiusOptionActive
-                  ]}
-                  onPress={() => handleChangeRadius(radius)}
-                >
-                  <Text style={[
-                    styles.radiusOptionText,
-                    searchRadius === radius && styles.radiusOptionTextActive
-                  ]}>
-                    {radius} km
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          {/* Botón de radio con dropdown */}
+          <View>
+            <LinearGradient
+              colors={['#6100BD', '#D500FF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.radiusButton}
+            >
+              <TouchableOpacity
+                style={styles.radiusButtonContent}
+                onPress={() => setShowRadiusSelector(!showRadiusSelector)}
+              >
+                <Ionicons name="resize-outline" size={20} color="#fff" />
+                <Text style={styles.radiusButtonText}>{searchRadius} km</Text>
+                <Ionicons 
+                  name={showRadiusSelector ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color="#fff" 
+                />
+              </TouchableOpacity>
+            </LinearGradient>
+
+            {showRadiusSelector && (
+              <View style={styles.radiusOptions}>
+                {RADIUS_OPTIONS.map((radius) => (
+                  searchRadius === radius ? (
+                    <LinearGradient
+                      key={radius}
+                      colors={['#6100BD', '#D500FF']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.radiusOption}
+                    >
+                      <TouchableOpacity
+                        style={styles.radiusOptionContent}
+                        onPress={() => handleChangeRadius(radius)}
+                      >
+                        <Text style={styles.radiusOptionTextActive}>
+                          {radius} km
+                        </Text>
+                      </TouchableOpacity>
+                    </LinearGradient>
+                  ) : (
+                    <TouchableOpacity
+                      key={radius}
+                      style={styles.radiusOption}
+                      onPress={() => handleChangeRadius(radius)}
+                    >
+                      <Text style={styles.radiusOptionText}>
+                        {radius} km
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                ))}
+              </View>
+            )}
+          </View>
         </View>
       )}
 
@@ -271,6 +332,7 @@ export function MapLocationSelector({
           <LocationConfirmation
             selectedPlace={selectedPlace}
             onConfirm={handleConfirmLocation}
+            onCancel={handleCancelSelection}
             loading={confirming}
           />
         </View>
@@ -311,24 +373,56 @@ export function MapLocationSelector({
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={[styles.confirmButton, (!locationName.trim() || confirming) && styles.confirmButtonDisabled]}
-              onPress={handleConfirmLocation}
-              disabled={confirming || !locationName.trim()}
-            >
-              {confirming ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
+            {(!locationName.trim() || confirming) ? (
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonDisabled]}
+                disabled={true}
+              >
+                {confirming ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                    <Text style={styles.confirmButtonText}>Confirmar Ubicación</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <LinearGradient
+                colors={['#6100BD', '#D500FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.confirmButton}
+              >
+                <TouchableOpacity
+                  style={styles.confirmButtonContent}
+                  onPress={handleConfirmLocation}
+                >
                   <Ionicons name="checkmark-circle" size={24} color="#fff" />
                   <Text style={styles.confirmButtonText}>Confirmar Ubicación</Text>
-                </>
-              )}
-            </TouchableOpacity>
+                </TouchableOpacity>
+              </LinearGradient>
+            )}
           </ScrollView>
         </View>
       )}
-    </View>
+
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
+      />
+      
+      <CustomAlert
+        visible={localAlertVisible}
+        title={localAlertConfig.title}
+        message={localAlertConfig.message}
+        buttons={localAlertConfig.buttons}
+        onClose={hideLocalAlert}
+      />
+    </SafeAreaView>
   );
 }
 
@@ -348,23 +442,35 @@ const styles = StyleSheet.create({
   // Selector de radio
   radiusContainer: {
     position: 'absolute',
-    top: 16,
+    top: 60,
     right: 16,
-    zIndex: 10,
-  },
-  radiusButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d500ff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 25,
     gap: 8,
+    zIndex: 10,
+  },
+  geoButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radiusButton: {
+    borderRadius: 25,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+    overflow: 'hidden',
+  },
+  radiusButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
   },
   radiusButtonText: {
     color: '#fff',
@@ -372,6 +478,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   radiusOptions: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
     marginTop: 8,
     backgroundColor: '#1f1f1f',
     borderRadius: 12,
@@ -381,15 +490,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+    minWidth: 120,
   },
   radiusOption: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
     marginBottom: 4,
+    overflow: 'hidden',
   },
-  radiusOptionActive: {
-    backgroundColor: '#d500ff',
+  radiusOptionContent: {
+    alignItems: 'center',
   },
   radiusOptionText: {
     color: '#ccc',
@@ -400,6 +511,7 @@ const styles = StyleSheet.create({
   radiusOptionTextActive: {
     color: '#fff',
     fontWeight: '700',
+    textAlign: 'center',
   },
   
   // Instrucciones
@@ -435,9 +547,10 @@ const styles = StyleSheet.create({
   // Filtros y búsqueda
   filters: { 
     position: 'absolute', 
-    top: 100, 
+    top: 0, 
     left: 0, 
-    right: 0 
+    right: 0,
+    zIndex: 11,
   },
   searching: {
     position: 'absolute',
@@ -467,7 +580,7 @@ const styles = StyleSheet.create({
   // Lista y confirmación
   places: { 
     position: 'absolute', 
-    bottom: 160, 
+    bottom: 0, 
     left: 0, 
     right: 0 
   },
@@ -540,22 +653,30 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   confirmButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    backgroundColor: '#d500ff',
     borderRadius: 14,
-    gap: 10,
     shadowColor: '#d500ff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 6,
+    overflow: 'hidden',
   },
   confirmButtonDisabled: { 
     backgroundColor: '#555',
     shadowOpacity: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 10,
+  },
+  confirmButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 10,
+    width: '100%',
   },
   confirmButtonText: { 
     fontSize: 17, 

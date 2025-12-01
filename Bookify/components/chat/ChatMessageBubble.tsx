@@ -1,13 +1,36 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { Message } from '../../types/chat';
 
 interface ChatMessageBubbleProps {
   message: Message;
   isMyMessage: boolean;
+  messageIndex?: number;
+  totalMessages?: number;
 }
 
-export function ChatMessageBubble({ message, isMyMessage }: ChatMessageBubbleProps) {
+export function ChatMessageBubble({ message, isMyMessage, messageIndex = 0, totalMessages = 1 }: ChatMessageBubbleProps) {
+  // Calcular color basado en posición: mensajes más antiguos (índice bajo) más oscuros, nuevos (índice alto) más claros
+  const getMessageColor = () => {
+    if (!isMyMessage || totalMessages === 0) return '#6100BD';
+    
+    // Normalizar posición entre 0 y 1 (0 = más antiguo, 1 = más nuevo)
+    const position = totalMessages > 1 ? messageIndex / (totalMessages - 1) : 1;
+    
+    // Interpolar entre morado oscuro (#6100BD) y morado claro (#D500FF)
+    const startColor = { r: 97, g: 0, b: 189 };  // #6100BD
+    const endColor = { r: 213, g: 0, b: 255 };   // #D500FF
+    
+    const r = Math.round(startColor.r + (endColor.r - startColor.r) * position);
+    const g = Math.round(startColor.g + (endColor.g - startColor.g) * position);
+    const b = Math.round(startColor.b + (endColor.b - startColor.b) * position);
+    
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
+  const backgroundColor = getMessageColor();
+
   return (
     <View
       style={[
@@ -15,23 +38,30 @@ export function ChatMessageBubble({ message, isMyMessage }: ChatMessageBubblePro
         isMyMessage ? styles.myMessage : styles.otherMessage,
       ]}
     >
-      <View
-        style={[
-          styles.bubble,
-          isMyMessage ? styles.myBubble : styles.otherBubble,
-        ]}
-      >
-        {!isMyMessage && (
+      {isMyMessage ? (
+        <View
+          style={[styles.bubble, styles.myBubble, { backgroundColor }]}
+        >
+          <Text style={styles.messageText}>{message.contenido_texto}</Text>
+          <Text style={styles.timestamp}>
+            {new Date(message.timestamp).toLocaleTimeString('es-ES', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+        </View>
+      ) : (
+        <View style={[styles.bubble, styles.otherBubble]}>
           <Text style={styles.senderName}>{message.emisor.nombre_usuario}</Text>
-        )}
-        <Text style={styles.messageText}>{message.contenido_texto}</Text>
-        <Text style={styles.timestamp}>
-          {new Date(message.timestamp).toLocaleTimeString('es-ES', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </Text>
-      </View>
+          <Text style={styles.messageText}>{message.contenido_texto}</Text>
+          <Text style={styles.timestamp}>
+            {new Date(message.timestamp).toLocaleTimeString('es-ES', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -58,7 +88,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   myBubble: {
-    backgroundColor: '#d500ff',
+    overflow: 'hidden',
   },
   otherBubble: {
     backgroundColor: '#2a2a2a',

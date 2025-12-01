@@ -49,17 +49,27 @@ export function PlacesList({ places, selectedPlace, onSelectPlace }: PlacesListP
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: 'transparent', paddingHorizontal: 16 },
+  container: { 
+    backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 24,
+  },
   title: {
     fontSize: 16,
     fontWeight: '700',
     color: '#333',
     marginBottom: 12,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
     alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   card: {
     width: 220,
