@@ -385,12 +385,19 @@ export default function AgregarScreen() {
     setSaving(true);
 
     try {
+      const reorderedImages = [...bookImages];
+      if (coverImageIndex !== 0) {
+        const coverImage = reorderedImages[coverImageIndex];
+        reorderedImages.splice(coverImageIndex, 1);
+        reorderedImages.unshift(coverImage);
+      }
+
       const bookToSave = {
         titulo: bookData.title,
         autor: bookData.author,
         descripcion: bookData.description,
         generos: selectedGenres, 
-        imagenes: bookImages,
+        imagenes: reorderedImages,
         id_usuario: user.id_usuario,
       };
 
