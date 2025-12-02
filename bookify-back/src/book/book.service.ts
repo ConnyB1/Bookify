@@ -35,20 +35,28 @@ export class BookService {
     // 🎯 FEATURE FLAG: Desactiva el filtro de proximidad cambiando FEATURES.PROXIMITY_FILTER_ENABLED a false
     if (!FEATURES.PROXIMITY_FILTER_ENABLED) {
       console.log('[DEBUG] ⚠️ Filtro de proximidad DESACTIVADO globalmente - retornando todos los libros');
-      const libros = await this.bookRepository.find({
-        where: { estado: Not(EstadoLibro.EXCHANGED) },
-        relations: ['propietario', 'generos', 'imagenes'],
-      });
+      const libros = await this.bookRepository
+        .createQueryBuilder('libro')
+        .leftJoinAndSelect('libro.propietario', 'propietario')
+        .leftJoinAndSelect('libro.generos', 'generos')
+        .leftJoinAndSelect('libro.imagenes', 'imagenes')
+        .where('libro.estado != :estado', { estado: EstadoLibro.EXCHANGED })
+        .orderBy('imagenes.id_imagen', 'ASC')
+        .getMany();
       return libros;
     }
 
     // Si no hay userId, retornar todos los libros (comportamiento original)
     if (!userId) {
       console.log('[DEBUG] Sin userId - retornando todos los libros');
-      const libros = await this.bookRepository.find({
-        where: { estado: Not(EstadoLibro.EXCHANGED) },
-        relations: ['propietario', 'generos', 'imagenes'],
-      });
+      const libros = await this.bookRepository
+        .createQueryBuilder('libro')
+        .leftJoinAndSelect('libro.propietario', 'propietario')
+        .leftJoinAndSelect('libro.generos', 'generos')
+        .leftJoinAndSelect('libro.imagenes', 'imagenes')
+        .where('libro.estado != :estado', { estado: EstadoLibro.EXCHANGED })
+        .orderBy('imagenes.id_imagen', 'ASC')
+        .getMany();
       return libros;
     }
 
@@ -60,10 +68,14 @@ export class BookService {
     // Si el usuario no tiene ubicación configurada, retornar todos
     if (!usuario || !usuario.latitud || !usuario.longitud) {
       console.log('[DEBUG] Usuario sin ubicación configurada - retornando todos los libros');
-      const libros = await this.bookRepository.find({
-        where: { estado: Not(EstadoLibro.EXCHANGED) },
-        relations: ['propietario', 'generos', 'imagenes'],
-      });
+      const libros = await this.bookRepository
+        .createQueryBuilder('libro')
+        .leftJoinAndSelect('libro.propietario', 'propietario')
+        .leftJoinAndSelect('libro.generos', 'generos')
+        .leftJoinAndSelect('libro.imagenes', 'imagenes')
+        .where('libro.estado != :estado', { estado: EstadoLibro.EXCHANGED })
+        .orderBy('imagenes.id_imagen', 'ASC')
+        .getMany();
       return libros;
     }
 
@@ -124,10 +136,14 @@ export class BookService {
     });
 
     // Obtener los libros completos con sus relaciones
-    const libros = await this.bookRepository.find({
-      where: { id_libro: In(libroIds) },
-      relations: ['propietario', 'generos', 'imagenes'],
-    });
+    const libros = await this.bookRepository
+      .createQueryBuilder('libro')
+      .leftJoinAndSelect('libro.propietario', 'propietario')
+      .leftJoinAndSelect('libro.generos', 'generos')
+      .leftJoinAndSelect('libro.imagenes', 'imagenes')
+      .where('libro.id_libro IN (:...libroIds)', { libroIds })
+      .orderBy('imagenes.id_imagen', 'ASC')
+      .getMany();
 
     // Mapear con distancias y ordenar
     const librosConDistancia = libros
@@ -217,20 +233,25 @@ export class BookService {
   }
 
   async findById(id: number): Promise<Libro | null> {
-    return await this.bookRepository.findOne({
-      where: { id_libro: id },
-      relations: ['propietario', 'generos', 'imagenes'],
-    });
+    return await this.bookRepository
+      .createQueryBuilder('libro')
+      .leftJoinAndSelect('libro.propietario', 'propietario')
+      .leftJoinAndSelect('libro.generos', 'generos')
+      .leftJoinAndSelect('libro.imagenes', 'imagenes')
+      .where('libro.id_libro = :id', { id })
+      .orderBy('imagenes.id_imagen', 'ASC')
+      .getOne();
   }
 
   async findByUser(userId: number): Promise<Libro[]> {
-    return await this.bookRepository.find({
-      where: { 
-        id_propietario: userId,
-        estado: Not(EstadoLibro.EXCHANGED)
-      },
-      relations: ['generos', 'imagenes'],
-    });
+    return await this.bookRepository
+      .createQueryBuilder('libro')
+      .leftJoinAndSelect('libro.generos', 'generos')
+      .leftJoinAndSelect('libro.imagenes', 'imagenes')
+      .where('libro.id_propietario = :userId', { userId })
+      .andWhere('libro.estado != :estado', { estado: EstadoLibro.EXCHANGED })
+      .orderBy('imagenes.id_imagen', 'ASC')
+      .getMany();
   }
 
   async countByUser(userId: number): Promise<number> {
