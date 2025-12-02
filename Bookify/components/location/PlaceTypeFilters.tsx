@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { SAFE_MEETING_PLACE_TYPES } from '../../services/openStreetMap';
+import { Lugares} from '../../services/openStreetMap';
 
 interface PlaceTypeFiltersProps {
   selectedType: string;
@@ -14,7 +14,7 @@ export function PlaceTypeFilters({ selectedType, onSelectType, disabled }: Place
   return (
     <View style={styles.container}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {SAFE_MEETING_PLACE_TYPES.map((item) => (
+        {Lugares.map((item) => (
           selectedType === item.type ? (
             <LinearGradient
               key={item.type}

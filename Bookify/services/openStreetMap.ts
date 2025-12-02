@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-// 🆓 Servicio GRATIS usando OpenStreetMap (Nominatim + Overpass API)
+import { API_CONFIG } from '../config/api';
 
 export interface OSMPlace {
   place_id: string;
@@ -28,7 +27,7 @@ const OSM_TAGS: Record<string, Array<[string, string]>> = {
   university: [['amenity', 'university'], ['amenity', 'college'], ['amenity', 'school']],
 };
 
-export const SAFE_MEETING_PLACE_TYPES = [
+export const Lugares = [
   { type: 'cafe', label: 'Cafeterías', icon: 'cafe' },
   { type: 'library', label: 'Bibliotecas', icon: 'library' },
   { type: 'park', label: 'Parques', icon: 'leaf' },
@@ -36,19 +35,25 @@ export const SAFE_MEETING_PLACE_TYPES = [
   { type: 'university', label: 'Universidades', icon: 'school' },
 ];
 
-// Calcular distancia 
-const calcDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371e3;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+
+const obtenerdistancias = async (
+  points: Array<{ lat1: number; lon1: number; lat2: number; lon2: number }>
+): Promise<number[]> => {
+  if (points.length === 0) return [];
+
+  try {
+    const { data } = await axios.post(
+      `${API_CONFIG.BASE_URL}/api/books/distance/batch`,
+      { points },
+      { timeout: 10000 }
+    );
+    return data.data.distances;
+  } catch (error) {
+    return points.map(() => 0);
+  }
 };
 
-// Buscar lugares cercanos con Overpass API
-export async function searchNearbyPlaces({ latitude, longitude, radius = 2000, type = 'cafe' }: NearbyParams): Promise<OSMPlace[]> {
+export async function buscarlugarescercanos({ latitude, longitude, radius = 2000, type = 'cafe' }: NearbyParams): Promise<OSMPlace[]> {
   try {
     const tags = OSM_TAGS[type] || OSM_TAGS.cafe;
     const queries = tags.flatMap(([k, v]) => [
@@ -64,7 +69,7 @@ export async function searchNearbyPlaces({ latitude, longitude, radius = 2000, t
 
     if (!data?.elements) return [];
 
-    return data.elements
+    const places = data.elements
       .filter((e: any) => e.tags?.name)
       .map((e: any) => {
         const lat = e.lat || e.center?.lat || 0;
@@ -72,14 +77,30 @@ export async function searchNearbyPlaces({ latitude, longitude, radius = 2000, t
         return {
           place_id: `osm_${e.type}_${e.id}`,
           name: e.tags.name,
-          display_name: formatAddress(e.tags),
+          display_name: direccion(e.tags),
           lat: lat.toString(),
           lon: lon.toString(),
           type: e.tags.amenity || e.tags.leisure || e.tags.shop || type,
           category: e.tags.amenity || e.tags.leisure || e.tags.shop || 'place',
-          distance: calcDistance(latitude, longitude, lat, lon),
+          coords: { lat, lon },
         };
-      })
+      });
+
+    const points = places.map((place: any) => ({
+      lat1: latitude,
+      lon1: longitude,
+      lat2: place.coords.lat,
+      lon2: place.coords.lon,
+    }));
+
+    const distances = await obtenerdistancias(points);
+
+    const placesWithDistance = places.map((place: any, index: number) => ({
+      ...place,
+      distance: distances[index],
+    }));
+
+    return placesWithDistance
       .sort((a: OSMPlace, b: OSMPlace) => (a.distance || 0) - (b.distance || 0))
       .slice(0, 20);
   } catch (error) {
@@ -88,8 +109,7 @@ export async function searchNearbyPlaces({ latitude, longitude, radius = 2000, t
   }
 }
 
-// Buscar por texto con Nominatim
-export async function searchPlacesByText(query: string, location?: { lat: number; lng: number }): Promise<OSMPlace[]> {
+export async function buscarlugar(query: string, location?: { lat: number; lng: number }): Promise<OSMPlace[]> {
   try {
     const params: any = { q: query, format: 'json', addressdetails: 1, limit: 10 };
     if (location) {
@@ -106,7 +126,31 @@ export async function searchPlacesByText(query: string, location?: { lat: number
       headers: { 'User-Agent': 'Bookify-App/1.0' }
     });
 
-    return Array.isArray(data) ? data.map(p => ({
+    if (!Array.isArray(data)) return [];
+
+    if (location) {
+      const points = data.map((p: any) => ({
+        lat1: location.lat,
+        lon1: location.lng,
+        lat2: parseFloat(p.lat),
+        lon2: parseFloat(p.lon),
+      }));
+
+      const distances = await obtenerdistancias(points);
+
+      return data.map((p: any, index: number) => ({
+        place_id: p.place_id,
+        name: p.name || p.display_name.split(',')[0],
+        display_name: p.display_name,
+        lat: p.lat,
+        lon: p.lon,
+        type: p.type,
+        category: p.class,
+        distance: distances[index],
+      }));
+    }
+
+    return data.map((p: any) => ({
       place_id: p.place_id,
       name: p.name || p.display_name.split(',')[0],
       display_name: p.display_name,
@@ -114,30 +158,15 @@ export async function searchPlacesByText(query: string, location?: { lat: number
       lon: p.lon,
       type: p.type,
       category: p.class,
-      distance: location ? calcDistance(location.lat, location.lng, parseFloat(p.lat), parseFloat(p.lon)) : undefined,
-    })) : [];
+      distance: undefined,
+    }));
   } catch (error) {
     console.error('[OSM] Search error:', error);
     return [];
   }
 }
 
-// Geocoding
-export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const { data } = await axios.get('https://nominatim.openstreetmap.org/search', {
-      params: { q: address, format: 'json', limit: 1 },
-      headers: { 'User-Agent': 'Bookify-App/1.0' }
-    });
-    return data?.[0] ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
-  } catch (error) {
-    console.error('[OSM] Geocoding error:', error);
-    return null;
-  }
-}
-
-// Formatear dirección
-function formatAddress(tags: any): string {
+function direccion(tags: any): string {
   const parts = [
     tags['addr:street'],
     tags['addr:housenumber'],

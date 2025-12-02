@@ -5,14 +5,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import LocationRequiredScreen from '@/components/LocationRequiredScreen';
 import React, { useMemo, useState, useEffect } from 'react';
-import {
-  FlatList,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  View,
-} from 'react-native';
+import {FlatList, StyleSheet, ActivityIndicator, Alert, RefreshControl, View, TouchableOpacity} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
 import { useRouter } from 'expo-router';
@@ -81,11 +74,9 @@ export default function InicioScreen() {
       if (result.success && result.data) {
         setBooks(result.data);
       } else {
-        console.error('Error fetching books:', result.message);
         Alert.alert('Error', 'No se pudieron cargar los libros');
       }
     } catch (error) {
-      console.error('Error fetching books:', error);
       Alert.alert('Error', 'Error de conexión al cargar los libros');
     } finally {
       setLoading(false);
@@ -99,6 +90,7 @@ export default function InicioScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
+      fetchBooks();
       loadUserGenrePreferences();
     }, [user?.id_usuario])
   );
@@ -174,8 +166,18 @@ export default function InicioScreen() {
                   ? userGenrePreferences.length === 0
                     ? 'Configura tus preferencias de géneros en tu perfil'
                     : 'No hay libros disponibles de tus géneros favoritos'
-                  : 'Desliza hacia abajo para actualizar'}
+                  : 'Intenta recargar para ver si hay nuevos libros'}
               </ThemedText>
+              
+              <TouchableOpacity 
+                style={styles.reloadButton}
+                onPress={onRefresh}
+              >
+                <Ionicons name="refresh" size={24} color="#fff" />
+                <ThemedText style={styles.reloadButtonText}>
+                  Recargar
+                </ThemedText>
+              </TouchableOpacity>
             </View>
           ) : (
             <FlatList
@@ -258,5 +260,20 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 8,
     textAlign: 'center',
+  },
+  reloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d500ff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    marginTop: 24,
+    gap: 8,
+  },
+  reloadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

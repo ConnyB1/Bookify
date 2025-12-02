@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
-import { searchNearbyPlaces, OSMPlace } from '../../services/openStreetMap';
+import { buscarlugarescercanos, OSMPlace } from '../../services/openStreetMap';
 
 interface UsePlaceSearchProps {
   onSearchComplete?: (places: OSMPlace[]) => void;
@@ -19,7 +19,7 @@ export function usePlaceSearch({ onSearchComplete }: UsePlaceSearchProps = {}) {
   ) => {
     try {
       setSearching(true);
-      const results = await searchNearbyPlaces({
+      const results = await buscarlugarescercanos({
         latitude: lat,
         longitude: lng,
         radius,

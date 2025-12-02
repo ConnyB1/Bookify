@@ -36,16 +36,14 @@ export class ImagesService {
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
-      // ACL removido - el bucket debe tener políticas públicas configuradas
     });
 
     try {
       await this.s3Client.send(command);
-      
-      // Retornar la URL pública
       return `https://${this.bucketName}.s3.${this.configService.get<string>('AWS_REGION')}.amazonaws.com/${key}`;
     } catch (error) {
-      throw new Error(`Error uploading image: ${error.message}`);
+      console.error('Error uploading image:', error);
+      throw error;
     }
   }
 

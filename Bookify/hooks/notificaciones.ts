@@ -1,39 +1,58 @@
 import { useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { apiClient } from '@/utils/apiClient';
 import { router } from 'expo-router';
 
-// Configurar cómo se manejan las notificaciones cuando la app está en primer plano
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Detectar si estamos en Expo Go
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Solo importar y configurar Notifications si NO estamos en Expo Go
+let Notifications: any = null;
+
+if (!isExpoGo) {
+  // Solo cargar expo-notifications en development builds o producción
+  try {
+    Notifications = require('expo-notifications');
+    
+    // Configurar cómo se manejan las notificaciones cuando la app está en primer plano
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (error) {
+    console.log('expo-notifications no disponible en este entorno');
+  }
+}
 
 /**
  * Hook para manejar notificaciones push de Expo
  * Se registra automáticamente cuando el usuario está autenticado
  * 
- * ⚠️ IMPORTANTE: Las notificaciones push en Android NO funcionan en Expo Go desde SDK 53.
- * Para probar notificaciones en Android, necesitas crear un Development Build.
+ * ⚠️ IMPORTANTE: Las notificaciones push NO funcionan en Expo Go desde SDK 53.
+ * Este hook está deshabilitado en Expo Go para evitar errores.
+ * Para usar notificaciones, necesitas crear un Development Build.
  * 
  * @param isAuthenticated - Si el usuario está autenticado
  * @returns { expoPushToken, notification, notificationData }
  */
 export function useNotificaciones(isAuthenticated: boolean = false) {
   const [expoPushToken, setExpoPushToken] = useState<string>('');
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-  const notificationListener = useRef<Notifications.Subscription | null>(null);
-  const responseListener = useRef<Notifications.Subscription | null>(null);
+  const [notification, setNotification] = useState<any>(null);
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   useEffect(() => {
-    // Solo registrar si el usuario está autenticado
+    if (isExpoGo) {
+      console.log('notis para Expo Go');
+      return;
+    }
+
     if (!isAuthenticated) {
       console.log('Usuario no autenticado, notificaciones push desactivadas');
       return;
@@ -54,21 +73,15 @@ export function useNotificaciones(isAuthenticated: boolean = false) {
       console.error('Error en registro de notificaciones:', error);
     });
 
-    // 2. Listener para cuando llega una notificación (app en foreground)
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+    notificationListener.current = Notifications?.addNotificationReceivedListener((notification: any) => {
       console.log('Notificación recibida:', notification);
       setNotification(notification);
-      
-      // La notificación se mostrará como push notification nativa
-      // y aparecerá en el perfil del usuario automáticamente
     });
 
-    // 3. Listener para cuando el usuario toca la notificación
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+    responseListener.current = Notifications?.addNotificationResponseReceivedListener((response: any) => {
       console.log('Usuario tocó la notificación:', response);
       const data = response.notification.request.content.data;
       
-      // Aquí puedes navegar según el tipo de notificación
       handleNotificationNavigation(data);
     });
 
@@ -135,6 +148,10 @@ async function saveTokenToBackend(token: string) {
 
 // Lógica de permisos
 async function registerForPushNotificationsAsync() {
+  if (isExpoGo || !Notifications) {
+    return undefined;
+  }
+
   let token;
   
   if (Platform.OS === 'android') {

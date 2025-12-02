@@ -29,6 +29,81 @@ export class BookController {
     }
   }
 
+  @Get('distance')
+  async calculateDistance(
+    @Query('lat1') lat1: string,
+    @Query('lon1') lon1: string,
+    @Query('lat2') lat2: string,
+    @Query('lon2') lon2: string,
+  ): Promise<{ success: boolean; data: { distance: number }; message: string }> {
+    try {
+      const lat1Num = parseFloat(lat1);
+      const lon1Num = parseFloat(lon1);
+      const lat2Num = parseFloat(lat2);
+      const lon2Num = parseFloat(lon2);
+
+      if (isNaN(lat1Num) || isNaN(lon1Num) || isNaN(lat2Num) || isNaN(lon2Num)) {
+        throw new BadRequestException('Coordenadas inválidas');
+      }
+
+      const distance = await this.bookService.calculateDistance(
+        lat1Num,
+        lon1Num,
+        lat2Num,
+        lon2Num,
+      );
+
+      return {
+        success: true,
+        data: { distance },
+        message: 'Distancia calculada exitosamente',
+      };
+    } catch (error) {
+      throw new BadRequestException(`Error al calcular distancia: ${error.message}`);
+    }
+  }
+
+  @Post('distance/batch')
+  async calculateDistanceBatch(
+    @Body() body: { points: Array<{ lat1: number; lon1: number; lat2: number; lon2: number }> },
+  ): Promise<{ success: boolean; data: { distances: number[] }; message: string }> {
+    try {
+      if (!body.points || !Array.isArray(body.points)) {
+        throw new BadRequestException('Se requiere un array de puntos');
+      }
+
+      if (body.points.length === 0) {
+        return {
+          success: true,
+          data: { distances: [] },
+          message: 'No hay puntos para calcular',
+        };
+      }
+
+      // Validar cada punto
+      for (const point of body.points) {
+        if (
+          typeof point.lat1 !== 'number' || 
+          typeof point.lon1 !== 'number' || 
+          typeof point.lat2 !== 'number' || 
+          typeof point.lon2 !== 'number'
+        ) {
+          throw new BadRequestException('Todas las coordenadas deben ser números');
+        }
+      }
+
+      const distances = await this.bookService.calculateDistanceBatch(body.points);
+
+      return {
+        success: true,
+        data: { distances },
+        message: `${distances.length} distancias calculadas exitosamente`,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Error al calcular distancias: ${error.message}`);
+    }
+  }
+
   @Get(':id')
   async getBookById(@Param('id') id: number): Promise<Libro> {
     const book = await this.bookService.findById(id);

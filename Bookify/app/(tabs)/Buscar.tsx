@@ -48,7 +48,7 @@ export default function BuscarScreen() {
           <SearchBar
             value={searchText}
             onChangeText={setSearchText} // 🎹 Escuchando tecleo
-            placeholder="Busca por título, autor... 📖✍️🚀" // 👻 Texto fantasma motivacional
+            placeholder="Busca por título, autor..." // 👻 Texto fantasma motivacional
             onFilterPress={() => setShowGenreModal(true)} // 🔘 ¡Click en filtros!
             hasActiveFilters={selectedGenres.length > 0} // 🚦 ¿Hay filtros?
           />

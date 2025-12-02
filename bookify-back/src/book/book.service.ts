@@ -300,4 +300,75 @@ export class BookService {
     const libroResult = await this.bookRepository.delete({ id_libro: id });
     console.log(`[BookService] Libro eliminado exitosamente. Affected rows: ${libroResult.affected || 0}`);
   }
+
+  /**
+   * Calcula la distancia entre dos puntos usando ST_Distance de PostGIS
+   * @param lat1 Latitud del primer punto
+   * @param lon1 Longitud del primer punto
+   * @param lat2 Latitud del segundo punto
+   * @param lon2 Longitud del segundo punto
+   * @returns Distancia en metros
+   */
+  async calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): Promise<number> {
+    const result = await this.bookRepository.query(
+      `SELECT 
+        ROUND(
+          CAST(
+            ST_Distance(
+              ST_MakePoint($1, $2)::geography,
+              ST_MakePoint($3, $4)::geography
+            ) AS NUMERIC
+          ), 0
+        ) AS distance`,
+      [lon1, lat1, lon2, lat2],
+    );
+    
+    return result[0]?.distance || 0;
+  }
+
+  /**
+   * Calcula distancias para múltiples pares de coordenadas en una sola query
+   * @param points Array de objetos {lat1, lon1, lat2, lon2}
+   * @returns Array de distancias en metros
+   */
+  async calculateDistanceBatch(
+    points: Array<{ lat1: number; lon1: number; lat2: number; lon2: number }>,
+  ): Promise<number[]> {
+    if (points.length === 0) {
+      return [];
+    }
+
+    // Construir query con múltiples SELECT UNION ALL
+    const queries = points.map((_, index) => {
+      const paramOffset = index * 4;
+      return `
+        SELECT 
+          ${index} as idx,
+          ROUND(
+            CAST(
+              ST_Distance(
+                ST_MakePoint($${paramOffset + 1}, $${paramOffset + 2})::geography,
+                ST_MakePoint($${paramOffset + 3}, $${paramOffset + 4})::geography
+              ) AS NUMERIC
+            ), 0
+          ) AS distance
+      `;
+    });
+
+    const fullQuery = queries.join(' UNION ALL ') + ' ORDER BY idx';
+
+    // Aplanar parámetros: [lon1, lat1, lon2, lat2, lon1, lat1, lon2, lat2, ...]
+    const params = points.flatMap(p => [p.lon1, p.lat1, p.lon2, p.lat2]);
+
+    const results = await this.bookRepository.query(fullQuery, params);
+    
+    // Retornar distancias en el mismo orden que los puntos originales
+    return results.map((r: any) => r.distance || 0);
+  }
 }
+
