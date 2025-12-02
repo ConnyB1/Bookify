@@ -24,11 +24,8 @@ export class ExchangeService {
     private notificationService: NotificationService,
   ) {}
 
-  /**
-   * Crear solicitud de intercambio
-   */
+  //Crear solicitud de intercambio
   async createExchangeRequest(dto: CreateExchangeDto): Promise<ExchangeResponseDto> {
-    // Verificar que el libro existe y cargar el propietario con su push_token
     const libro = await this.libroRepository.findOne({
       where: { id_libro: dto.id_libro_solicitado },
       relations: ['propietario'],
@@ -38,12 +35,10 @@ export class ExchangeService {
       throw new NotFoundException('Libro no encontrado');
     }
 
-    // Verificar que no sea el mismo usuario
     if (libro.propietario.id_usuario === dto.id_usuario_solicitante) {
       throw new BadRequestException('No puedes solicitar intercambio de tu propio libro');
     }
 
-    // Crear intercambio
     const intercambio = this.intercambioRepository.create({
       id_libro_solicitado_fk: dto.id_libro_solicitado,
       id_libro_ofertado_fk: dto.id_libro_ofertado || null,
@@ -54,7 +49,6 @@ export class ExchangeService {
 
     const savedIntercambio = await this.intercambioRepository.save(intercambio);
 
-    // Crear notificación para el propietario del libro
     const solicitante = await this.usuarioRepository.findOne({
       where: { id_usuario: dto.id_usuario_solicitante },
     });
@@ -70,9 +64,8 @@ export class ExchangeService {
 
     await this.notificacionRepository.save(notificacion);
 
-    // 🔔 Enviar push notification
     try {
-      console.log('📱 Intentando enviar notificación push...');
+      console.log('Intentando enviar notificación push...');
       console.log('   - Propietario:', libro.propietario.nombre_usuario);
       console.log('   - Push token disponible:', !!libro.propietario.push_token);
       
@@ -80,7 +73,7 @@ export class ExchangeService {
         console.log('   - Token:', libro.propietario.push_token.substring(0, 30) + '...');
         await this.notificationService.sendPushNotification(
           libro.propietario.push_token,
-          '📚 Nueva solicitud de intercambio',
+          'Nueva solicitud de intercambio',
           `${solicitante?.nombre_usuario || 'Un usuario'} quiere intercambiar "${libro.titulo}"`,
           { 
             type: 'exchange_request', 
@@ -90,15 +83,14 @@ export class ExchangeService {
             senderName: solicitante?.nombre_usuario || 'Un usuario'
           }
         );
-        console.log('✅ Notificación push enviada exitosamente');
+        console.log('Notificación push enviada exitosamente');
       } else {
-        console.warn('⚠️ Usuario no tiene push_token registrado, notificación no enviada');
+        console.warn('Usuario no tiene push_token registrado, notificación no enviada');
       }
     } catch (error) {
-      console.error('❌ Error enviando push notification:', error);
+      console.error('Error enviando push notification:', error);
     }
 
-    // Retornar respuesta formateada
     const intercambioCompleto = await this.intercambioRepository.findOne({
       where: { id_intercambio: savedIntercambio.id_intercambio },
       relations: ['libro_solicitado', 'libro_ofertado', 'usuario_solicitante', 'usuario_solicitante_receptor'],
@@ -111,11 +103,8 @@ export class ExchangeService {
     return this.formatExchangeResponse(intercambioCompleto);
   }
 
-  /**
-   * Verificar si existe una solicitud pendiente entre estos usuarios específicos
-   */
+  //Verificar si existe una solicitud pendiente entre estos usuarios específicos
   async checkPendingExchange(bookId: number, userId: number, ownerId: number): Promise<boolean> {
-    // Solo verificar si ESTE usuario específico tiene una solicitud pendiente con ESTE propietario específico
     const pendingExchange = await this.intercambioRepository.findOne({
       where: {
         id_libro_solicitado_fk: bookId,
@@ -128,9 +117,6 @@ export class ExchangeService {
     return !!pendingExchange;
   }
 
-  /**
-   * Obtener un intercambio específico por ID
-   */
   async getExchangeById(intercambioId: number): Promise<ExchangeResponseDto & { id_chat?: number }> {
     const intercambio = await this.intercambioRepository.findOne({
       where: { id_intercambio: intercambioId },
@@ -143,7 +129,6 @@ export class ExchangeService {
 
     const response = this.formatExchangeResponse(intercambio);
 
-    // Si el intercambio fue aceptado, buscar el chat asociado
     if (intercambio.estado_propuesta === EstadoPropuesta.ACCEPTED) {
       try {
         const chats = await this.chatService.getUserChats(intercambio.id_usuario_solicitante_fk);
@@ -162,9 +147,7 @@ export class ExchangeService {
     return response;
   }
 
-  /**
-   * Obtener intercambios recibidos por un usuario (notificaciones de intercambio)
-   */
+  //Obtener intercambios recibidos por un usuario 
   async getReceivedExchanges(userId: number): Promise<ExchangeResponseDto[]> {
     const intercambios = await this.intercambioRepository.find({
       where: { id_usuario_solicitante_receptor_fk: userId },
@@ -175,9 +158,7 @@ export class ExchangeService {
     return intercambios.map(i => this.formatExchangeResponse(i));
   }
 
-  /**
-   * Obtener intercambios enviados por un usuario
-   */
+
   async getSentExchanges(userId: number): Promise<ExchangeResponseDto[]> {
     const intercambios = await this.intercambioRepository.find({
       where: { id_usuario_solicitante_fk: userId },
@@ -188,9 +169,6 @@ export class ExchangeService {
     return intercambios.map(i => this.formatExchangeResponse(i));
   }
 
-  /**
-   * Aceptar o rechazar intercambio
-   */
   async updateExchangeStatus(
     intercambioId: number,
     userId: number,
@@ -270,7 +248,6 @@ export class ExchangeService {
 
     let chatId: number | undefined;
 
-    // Si el intercambio fue aceptado, crear chat automáticamente
     if (dto.estado_propuesta === EstadoPropuesta.ACCEPTED) {
       try {
         const chatResult = await this.chatService.createChat({
@@ -279,10 +256,9 @@ export class ExchangeService {
           id_intercambio: intercambioId,
         });
         chatId = chatResult.id_chat;
-        console.log(`✅ Chat creado automáticamente para intercambio ${intercambioId}: ${chatId}`);
+        console.log(`Chat creado automáticamente para intercambio ${intercambioId}: ${chatId}`);
       } catch (error) {
         console.error('Error creando chat automático:', error);
-        // No fallar el intercambio si no se pudo crear el chat
       }
     }
 
@@ -297,17 +273,13 @@ export class ExchangeService {
 
     const response = this.formatExchangeResponse(intercambioActualizado);
     
-    // Agregar id_chat a la respuesta si se creó
     return chatId ? { ...response, id_chat: chatId } : response;
   }
 
-  /**
-   * Seleccionar libro para ofrecer en intercambio
-   */
+
   async offerBook(intercambioId: number, idLibroOfertado: number): Promise<ExchangeResponseDto> {
     console.log(`[offerBook] Recibiendo solicitud para intercambio ${intercambioId}, libro ${idLibroOfertado}`);
     
-    // Obtener el intercambio
     const intercambio = await this.intercambioRepository.findOne({
       where: { id_intercambio: intercambioId },
       relations: ['libro_solicitado', 'usuario_solicitante', 'usuario_solicitante_receptor'],
@@ -321,20 +293,17 @@ export class ExchangeService {
     console.log(`[offerBook] Estado del intercambio: ${intercambio.estado_propuesta}`);
     console.log(`[offerBook] Libro ofertado actual: ${intercambio.id_libro_ofertado_fk}`);
 
-    // Verificar que el intercambio esté pendiente o aceptado y sin libro ofertado
     if (intercambio.estado_propuesta !== EstadoPropuesta.PENDING && 
         intercambio.estado_propuesta !== EstadoPropuesta.ACCEPTED) {
       console.log(`[offerBook] ERROR: Intercambio no está en estado pending o accepted`);
       throw new BadRequestException('Solo se puede ofrecer un libro en intercambios pendientes o aceptados');
     }
 
-    // Verificar que no haya un libro ya ofertado
     if (intercambio.id_libro_ofertado_fk) {
       console.log(`[offerBook] ERROR: Ya hay un libro ofertado`);
       throw new BadRequestException('Ya se ha seleccionado un libro para este intercambio');
     }
 
-    // Verificar que el libro existe y pertenece al solicitante
     const libro = await this.libroRepository.findOne({
       where: { id_libro: idLibroOfertado },
       relations: ['propietario'],
@@ -344,7 +313,6 @@ export class ExchangeService {
       throw new NotFoundException('Libro no encontrado');
     }
 
-    // El receptor selecciona un libro del solicitante para el intercambio
     if (libro.propietario.id_usuario !== intercambio.id_usuario_solicitante_fk) {
       throw new BadRequestException('Solo puedes seleccionar libros del solicitante');
     }
@@ -365,7 +333,6 @@ export class ExchangeService {
 
     await this.notificacionRepository.save(notificacion);
 
-    // 🔔 Enviar push notification
     try {
       const receptor = await this.usuarioRepository.findOne({ 
         where: { id_usuario: intercambio.id_usuario_solicitante_fk } 
@@ -374,7 +341,7 @@ export class ExchangeService {
       if (receptor?.push_token) {
         await this.notificationService.sendPushNotification(
           receptor.push_token,
-          '📖 Libro ofrecido para intercambio',
+          'Libro ofrecido para intercambio',
           `${intercambio.usuario_solicitante_receptor.nombre_usuario} te ofrece "${libro.titulo}"`,
           { 
             type: 'book_offered',
@@ -438,9 +405,7 @@ export class ExchangeService {
 
     await this.intercambioRepository.save(intercambio);
 
-    // 🔔 Notificar al otro usuario con push notification
     try {
-      // Determinar el receptor (el otro usuario del intercambio)
       const otroUsuarioId = intercambio.id_usuario_solicitante_fk === intercambio.usuario_solicitante.id_usuario
         ? intercambio.id_usuario_solicitante_receptor_fk
         : intercambio.id_usuario_solicitante_fk;
@@ -452,7 +417,7 @@ export class ExchangeService {
       if (receptor?.push_token) {
         await this.notificationService.sendPushNotification(
           receptor.push_token,
-          '📍 Ubicación de encuentro propuesta',
+          'Ubicación de encuentro propuesta',
           `Se propuso "${nombre}" como punto de encuentro`,
           { 
             type: 'meeting_location_proposed',
@@ -480,9 +445,6 @@ export class ExchangeService {
     };
   }
 
-  /**
-   * Confirmar intercambio (bilateral)
-   */
   async confirmExchange(intercambioId: number, usuarioId: number): Promise<any> {
     const intercambio = await this.intercambioRepository.findOne({
       where: { id_intercambio: intercambioId },
@@ -561,7 +523,6 @@ export class ExchangeService {
 
     await this.notificacionRepository.save(notificacion);
 
-    // 🔔 Enviar push notification
     try {
       const receptor = await this.usuarioRepository.findOne({ 
         where: { id_usuario: otroUsuarioId } 
@@ -569,7 +530,7 @@ export class ExchangeService {
       
       if (receptor?.push_token) {
         const titulo = ambosConfirmaron 
-          ? '🎉 ¡Intercambio completado!'
+          ? '¡Intercambio completado!'
           : '✓ Confirmación recibida';
         
         await this.notificationService.sendPushNotification(
@@ -599,9 +560,6 @@ export class ExchangeService {
     };
   }
 
-  /**
-   * Cancelar intercambio
-   */
   async cancelExchange(intercambioId: number, userId: number): Promise<void> {
     const intercambio = await this.intercambioRepository.findOne({
       where: { id_intercambio: intercambioId },
@@ -612,7 +570,6 @@ export class ExchangeService {
       throw new NotFoundException('Intercambio no encontrado');
     }
 
-    // Verificar que el usuario sea parte del intercambio
     const esParteDelIntercambio = 
       intercambio.id_usuario_solicitante_fk === userId || 
       intercambio.id_usuario_solicitante_receptor_fk === userId;
@@ -658,7 +615,7 @@ export class ExchangeService {
       if (receptor?.push_token) {
         await this.notificationService.sendPushNotification(
           receptor.push_token,
-          '❌ Intercambio cancelado',
+          'Intercambio cancelado',
           `${usuarioCancelo.nombre_usuario} ha cancelado el intercambio`,
           { 
             type: 'exchange_cancelled',

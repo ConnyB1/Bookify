@@ -102,8 +102,16 @@ export default function InicioScreen() {
     
     try {
       const url = buildApiUrl(`/users/${user.id_usuario}/genre-preferences`);
+      console.log('[DEBUG] Fetching from:', url);
+      
       const response = await fetch(url);
-      const result = await response.json();
+      console.log('[DEBUG] Response status:', response.status);
+      console.log('[DEBUG] Response headers:', response.headers.get('content-type'));
+      
+      const text = await response.text();
+      console.log('[DEBUG] Response text:', text.substring(0, 200));
+      
+      const result = JSON.parse(text);
       
       if (result.success && result.data) {
         const genreIds = result.data.genreIds || [];
