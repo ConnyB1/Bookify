@@ -21,6 +21,7 @@ import CustomAlert from '@/components/CustomAlert';
 import { useAlertDialog } from '@/hooks/useAlertDialog';
 import ImagePickerSheet from '@/components/ImagePickerSheet';
 import PermissionModal from '@/components/PermissionModal';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const GENRES = [
   'Ciencia Ficción',
@@ -454,17 +455,20 @@ export default function AgregarScreen() {
           <View style={styles.header}>
             <ThemedText style={styles.title}>Agregar Libro</ThemedText>
             <View style={styles.headerButtons}>
-              <TouchableOpacity 
-                onPress={saveBook}
-                style={styles.saveButton}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <ThemedText style={styles.saveButtonText}>Guardar</ThemedText>
-                )}
-              </TouchableOpacity>
+              <LinearGradient colors={['#6100BD', '#D500FF']} start={{ x: 0, y: 0 }}end={{ x: 1, y: 0 }} style={{ borderRadius: 20 }}>  
+                <TouchableOpacity 
+                  onPress={saveBook}
+                  style={styles.saveButton}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    
+                    <ThemedText style={styles.saveButtonText}>Guardar</ThemedText>
+                  )}
+                </TouchableOpacity>
+              </LinearGradient>
             </View>
           </View>
 
@@ -711,7 +715,6 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   saveButton: {
-    backgroundColor: '#d500ff',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,

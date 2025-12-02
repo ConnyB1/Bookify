@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.101:3000',
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://10.41.72.78:3000',
 
   ENDPOINTS: {
     UPLOAD_IMAGE: '/api/images/upload/book',
