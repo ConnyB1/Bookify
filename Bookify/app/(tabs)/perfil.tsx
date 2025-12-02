@@ -128,10 +128,9 @@ export default function PerfilScreen() {
       return;
     }
 
-    // Cerrar el modal PRIMERO
     setShowNotifications(false);
 
-    // Mostrar confirmación después de un pequeño delay
+
     setTimeout(() => {
       showAlert(
         'Eliminar Notificaciones Leídas',
@@ -142,7 +141,7 @@ export default function PerfilScreen() {
             style: 'cancel',
             onPress: () => {
               hideAlert();
-              // Reabrir el modal si cancela
+        
               setShowNotifications(true);
             },
           },
@@ -189,7 +188,7 @@ export default function PerfilScreen() {
   };
 
   const handleLogout = () => {
-    setShowSettingsMenu(false); // Cerrar menú primero
+    setShowSettingsMenu(false); 
     setTimeout(() => {
       showAlert(
         'Cerrar Sesión',
@@ -279,7 +278,7 @@ export default function PerfilScreen() {
         <LocationSettingButton onPress={() => router.push('/(tabs)/ubicacion')} />
       </View>
 
-      {/* Título de la sección de libros */}
+     
       <Text style={styles.sectionTitle}>Mis Libros</Text>
     </>
   );
@@ -297,7 +296,7 @@ export default function PerfilScreen() {
     if (!loadingLibros && libros.length === 0) {
       return (
         <Text style={styles.noBooksText}>
-          Aún no tienes libros registrados 📚
+          Aún no tienes libros registrados
         </Text>
       );
     }

@@ -49,7 +49,7 @@ export function useExchangeActions({
 
           setTimeout(() => {
             showAlert(
-              '¡Solicitud Aceptada! 🎉',
+              '¡Solicitud Aceptada!',
               `${otherUserName} ha aceptado tu solicitud de intercambio. Ya puedes conversar.`,
               [
                 {

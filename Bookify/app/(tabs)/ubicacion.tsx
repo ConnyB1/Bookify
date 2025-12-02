@@ -138,23 +138,20 @@ export default function LocationSettingsScreen() {
         return;
       }
 
-      // 2. Obtener ubicación actual
-      const currentLocation = await Location.getCurrentPositionAsync({
+      const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
-      // 3. Geocoding reverso para obtener ciudad
       const [address] = await Location.reverseGeocodeAsync({
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
       });
 
       const ciudad = address.city || address.subregion || address.region || 'Ubicación desconocida';
 
-      // 4. Guardar en backend
       await saveLocation(
-        currentLocation.coords.latitude,
-        currentLocation.coords.longitude,
+        location.coords.latitude,
+        location.coords.longitude,
         ciudad
       );
 

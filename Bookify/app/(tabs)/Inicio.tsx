@@ -146,7 +146,7 @@ export default function InicioScreen() {
       <SafeAreaView style={styles.safeArea}>
           <ThemedView style={styles.container}>
             
-          {/* Encabezado */}
+          
           <Header />
 
           {/* Filtros */}
@@ -155,7 +155,7 @@ export default function InicioScreen() {
             initialFilter={currentFilter}
           />
 
-          {/* Lista de Libros */}
+          {/* Lista de los libros */}
           {loading ? (
             <ActivityIndicator size="large" color="#d500ff" style={styles.loader} />
             
@@ -194,14 +194,13 @@ export default function InicioScreen() {
               numColumns={2}
               columnWrapperStyle={{justifyContent: 'flex-start'}}
               contentContainerStyle={styles.listContainer}
-              // Performance optimizations
               removeClippedSubviews={true}
               maxToRenderPerBatch={10}
               updateCellsBatchingPeriod={50}
               initialNumToRender={10}
               windowSize={10}
               getItemLayout={(data, index) => ({
-                length: 280, // Approximate height of BookItem
+                length: 280, 
                 offset: 280 * Math.floor(index / 2),
                 index,
               })}

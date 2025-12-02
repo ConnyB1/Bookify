@@ -48,13 +48,9 @@ const { width } = Dimensions.get('window');
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  // 2. Obtener 'tokens' para la autenticación
-  const { user, tokens } = useAuth(); 
+  const { user, tokens } = useAuth();
 
-  // 3. Instanciar el hook de alerta
-  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
-
-  const [libro, setLibro] = useState<LibroDTO | null>(null);
+  const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();  const [libro, setLibro] = useState<LibroDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -66,7 +62,7 @@ export default function BookDetailScreen() {
   useEffect(() => {
     if (bookId) {
       fetchBookDetails(bookId);
-      setCurrentImageIndex(0); // Resetear al cambiar de libro
+      setCurrentImageIndex(0);
     } else {
       setLoading(false);
     }
@@ -96,12 +92,10 @@ export default function BookDetailScreen() {
       if (!response.ok) throw new Error(`Error de red: ${response.statusText}`);
 
       const result = await response.json();
-      // CORRECCIÓN DE BUG: Tu API devuelve el objeto directo
       if (result && result.id_libro) setLibro(result);
       else throw new Error('Respuesta inválida o libro no encontrado.');
     } catch (error) {
       console.error('Error fetching book details:', error);
-      // 4. Reemplazar Alert.alert con showAlert
       showAlert(
         'Error',
         `No se pudo cargar el detalle del libro: ${error instanceof Error ? error.message : 'Error desconocido'}`,
@@ -229,7 +223,6 @@ export default function BookDetailScreen() {
   };
 
   const handleExchangeRequest = async () => {
-    // 4. Reemplazar Alert.alert y añadir chequeo de tokens
     if (!user || !tokens || !tokens.accessToken) {
       showAlert('Error', 'Debes iniciar sesión para solicitar un intercambio', [
         { text: 'OK', onPress: hideAlert }
@@ -273,7 +266,6 @@ export default function BookDetailScreen() {
       return;
     }
 
-    // 4. Reemplazar Alert.alert
     showAlert(
       'Confirmar Solicitud', // Título cambiado para mejor icono
       `¿Deseas solicitar intercambio del libro "${libro.titulo}"?`,
@@ -282,10 +274,9 @@ export default function BookDetailScreen() {
         {
           text: 'Enviar Solicitud',
           onPress: async () => {
-            hideAlert(); // Ocultar esta alerta
+            hideAlert();
             setSendingRequest(true);
             try {
-              // BUG FIX: Usar el endpoint correcto de la config
               const url = buildApiUrl(API_CONFIG.ENDPOINTS.EXCHANGE_REQUEST);
               
               const response = await fetch(url, {
@@ -302,12 +293,9 @@ export default function BookDetailScreen() {
 
               const result = await response.json();
               
-              // BUG FIX: Usar response.ok es más seguro que result.success
               if (response.ok) {
-                // Actualizar estado para indicar que hay solicitud pendiente
                 setHasPendingExchange(true);
                 
-                // 4. Reemplazar Alert.alert
                 showAlert(
                   'Éxito',
                   'Solicitud de intercambio enviada correctamente.',
@@ -321,7 +309,6 @@ export default function BookDetailScreen() {
               }
             } catch (error) {
               console.error('Error sending exchange request:', error);
-              // 4. Reemplazar Alert.alert
               showAlert(
                 'Error',
                 `No se pudo enviar la solicitud: ${error instanceof Error ? error.message : 'Error desconocido'}`,

@@ -35,28 +35,28 @@ export function useNotificaciones(isAuthenticated: boolean = false) {
   useEffect(() => {
     // Solo registrar si el usuario está autenticado
     if (!isAuthenticated) {
-      console.log('ℹ️ Usuario no autenticado, notificaciones push desactivadas');
+      console.log('Usuario no autenticado, notificaciones push desactivadas');
       return;
     }
 
-    console.log('🔔 Iniciando registro de notificaciones push...');
+    console.log('Iniciando registro de notificaciones push...');
 
     // 1. Registrar y obtener el token
     registerForPushNotificationsAsync().then(token => {
       if (token) {
-        console.log('✅ Token de notificaciones obtenido:', token);
+        console.log('Token de notificaciones obtenido:', token);
         setExpoPushToken(token);
         saveTokenToBackend(token);
       } else {
-        console.warn('⚠️ No se pudo obtener el token de notificaciones');
+        console.warn('No se pudo obtener el token de notificaciones');
       }
     }).catch(error => {
-      console.error('❌ Error en registro de notificaciones:', error);
+      console.error('Error en registro de notificaciones:', error);
     });
 
     // 2. Listener para cuando llega una notificación (app en foreground)
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('🔔 Notificación recibida:', notification);
+      console.log('Notificación recibida:', notification);
       setNotification(notification);
       
       // La notificación se mostrará como push notification nativa
@@ -65,7 +65,7 @@ export function useNotificaciones(isAuthenticated: boolean = false) {
 
     // 3. Listener para cuando el usuario toca la notificación
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('👆 Usuario tocó la notificación:', response);
+      console.log('Usuario tocó la notificación:', response);
       const data = response.notification.request.content.data;
       
       // Aquí puedes navegar según el tipo de notificación
@@ -92,7 +92,7 @@ export function useNotificaciones(isAuthenticated: boolean = false) {
 function handleNotificationNavigation(data: any) {
   if (!data || !data.type) return;
 
-  console.log('📍 Navegando según notificación:', data);
+  console.log('Navegando según notificación:', data);
 
   // Según el tipo, navegar a la pantalla correspondiente
   switch (data.type) {
@@ -120,16 +120,16 @@ function handleNotificationNavigation(data: any) {
 }
 async function saveTokenToBackend(token: string) {
   try {
-    console.log('💾 Intentando guardar token en backend:', token.substring(0, 20) + '...');
+    console.log('Intentando guardar token en backend:', token.substring(0, 20) + '...');
     const result = await apiClient.patch('/users/push-token', { token });
     
     if (result.ok) {
-      console.log('✅ Token push guardado exitosamente en el backend');
+      console.log('Token push guardado exitosamente en el backend');
     } else {
-      console.error('❌ Error al guardar token, status:', result.status, result.error);
+      console.error('Error al guardar token, status:', result.status, result.error);
     }
   } catch (error) {
-    console.error('❌ Error crítico guardando token:', error);
+    console.error('Error crítico guardando token:', error);
   }
 }
 
@@ -147,7 +147,7 @@ async function registerForPushNotificationsAsync() {
   }
 
   if (!Device.isDevice) {
-    console.warn('⚠️ Las notificaciones push solo funcionan en dispositivos físicos');
+    console.warn('Las notificaciones push solo funcionan en dispositivos físicos');
     return;
   }
 
@@ -161,43 +161,43 @@ async function registerForPushNotificationsAsync() {
   }
   
   if (finalStatus !== 'granted') {
-    console.warn('⚠️ Permisos de notificaciones no otorgados');
+    console.warn('Permisos de notificaciones no otorgados');
     return;
   }
 
   // Intentar obtener el token
   try {
-    console.log('🔑 Obteniendo token de Expo Push...');
+    console.log('Obteniendo token de Expo Push...');
     
     // Primero, verificar si hay un projectId en la configuración
     const projectId = Constants?.expoConfig?.extra?.eas?.projectId || 
                      Constants?.easConfig?.projectId ||
                      Constants?.manifest2?.extra?.eas?.projectId;
     
-    console.log('📋 Project ID disponible:', projectId ? 'Sí' : 'No');
+    console.log('Project ID disponible:', projectId ? 'Sí' : 'No');
     
     try {
       // Intentar con projectId si está disponible
       if (projectId) {
-        console.log('🔄 Obteniendo token con Project ID...');
+        console.log('Obteniendo token con Project ID...');
         const response = await Notifications.getExpoPushTokenAsync({ 
           projectId: projectId 
         });
         token = response.data;
-        console.log('✅ Token obtenido exitosamente con Project ID:', token);
+        console.log('Token obtenido exitosamente con Project ID:', token);
       } else {
         // Si no hay projectId, intentar sin él (puede funcionar en algunos casos)
-        console.log('🔄 Obteniendo token sin Project ID...');
+        console.log('Obteniendo token sin Project ID...');
         const response = await Notifications.getExpoPushTokenAsync();
         token = response.data;
-        console.log('✅ Token obtenido exitosamente sin Project ID:', token);
+        console.log('Token obtenido exitosamente sin Project ID:', token);
       }
     } catch (err: any) {
-      console.error('❌ Error obteniendo token:', err.message);
+      console.error('Error obteniendo token:', err.message);
       
       if (err.message.includes('projectId')) {
         // Error específico de projectId faltante
-        console.log('💡 Solución: Agregando projectId automático para desarrollo...');
+        console.log('Solución: Agregando projectId automático para desarrollo...');
         
         // Generar un projectId temporal para desarrollo
         // Nota: Este token solo funcionará para pruebas locales
@@ -206,11 +206,11 @@ async function registerForPushNotificationsAsync() {
             projectId: 'your-project-id' // Placeholder
           });
           token = response.data;
-          console.log('⚠️ Token de desarrollo obtenido (limitado):', token);
+          console.log('Token de desarrollo obtenido (limitado):', token);
         } catch (finalErr: any) {
-          console.error('❌ No se pudo obtener token de notificaciones:', finalErr.message);
+          console.error('No se pudo obtener token de notificaciones:', finalErr.message);
           console.log('');
-          console.log('📖 SOLUCIÓN:');
+          console.log('SOLUCIÓN:');
           console.log('1. Crea una cuenta EAS: npx eas-cli login');
           console.log('2. Configura el proyecto: npx eas build:configure');
           console.log('   O agrega manualmente en app.json:');
@@ -222,7 +222,7 @@ async function registerForPushNotificationsAsync() {
       }
     }
   } catch (error: any) {
-    console.error('❌ Error crítico obteniendo push token:', error);
+    console.error('Error crítico obteniendo push token:', error);
     return;
   }
 
