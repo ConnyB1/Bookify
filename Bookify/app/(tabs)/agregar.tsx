@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { API_CONFIG, buildApiUrl } from '../../config/api';
-import { getGenreColor, getGenreColorLight } from '../../utils/genreColors';
+import { getGenreColor } from '../../utils/genreColors';
 import { useAuth } from '@/contexts/AuthContext';
 import CustomAlert from '@/components/CustomAlert';
 import { useAlertDialog } from '@/hooks/useAlertDialog';
@@ -57,7 +57,6 @@ export default function AgregarScreen() {
   const MAX_IMAGES = 5;
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-  // Aqui se valida el tamano de las fotos
   const validateImageSize = async (uri: string): Promise<boolean> => {
     try {
       const response = await fetch(uri);
@@ -80,9 +79,7 @@ export default function AgregarScreen() {
 
 
   const pickImage = async () => {
-    console.log('[pickImage] Function called');
     if (bookImages.length >= MAX_IMAGES) {
-      console.log('[pickImage] Max images reached');
       showAlert(
         'Límite alcanzado',
         `Solo puedes agregar hasta ${MAX_IMAGES} fotos por libro`,
@@ -92,13 +89,10 @@ export default function AgregarScreen() {
     }
 
     try {
-      console.log('[pickImage] Checking permissions...');
       const { status, canAskAgain } = await ImagePicker.getMediaLibraryPermissionsAsync();
-      console.log('[pickImage] Permission status:', { status, canAskAgain });
       
       if (status !== 'granted') {
         if (canAskAgain) {
-          console.log('[pickImage] Showing permission modal');
           setPermissionType('gallery');
           setPermissionModalVisible(true);
         } else {
@@ -111,14 +105,11 @@ export default function AgregarScreen() {
         return;
       }
 
-
-      console.log('[pickImage] Launching image library...');
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsEditing: true,
         aspect: [3, 4],
         quality: 0.8,
       });
-      console.log('[pickImage] Result:', result);
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const isValid = await validateImageSize(result.assets[0].uri);
@@ -136,9 +127,7 @@ export default function AgregarScreen() {
 
   
   const takePhoto = async () => {
-    console.log('[takePhoto] Function called');
     if (bookImages.length >= MAX_IMAGES) {
-      console.log('[takePhoto] Max images reached');
       showAlert(
         'Límite alcanzado',
         `Solo puedes agregar hasta ${MAX_IMAGES} fotos por libro`,
@@ -148,13 +137,10 @@ export default function AgregarScreen() {
     }
 
     try {
-      console.log('[takePhoto] Checking camera permissions...');
       const { status, canAskAgain } = await ImagePicker.getCameraPermissionsAsync();
-      console.log('[takePhoto] Permission status:', { status, canAskAgain });
       
       if (status !== 'granted') {
         if (canAskAgain) {
-          console.log('[takePhoto] Showing permission modal');
           setPermissionType('camera');
           setPermissionModalVisible(true);
         } else {
@@ -167,13 +153,11 @@ export default function AgregarScreen() {
         return;
       }
 
-      console.log('[takePhoto] Launching camera...');
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [3, 4],
         quality: 0.8,
       });
-      console.log('[takePhoto] Result:', result);
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const isValid = await validateImageSize(result.assets[0].uri);
@@ -191,17 +175,13 @@ export default function AgregarScreen() {
 
   // Permisos
   const handlePermissionConfirm = async () => {
-    console.log('[handlePermissionConfirm] Permission type:', permissionType);
     setPermissionModalVisible(false);
 
-    
     await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
       if (permissionType === 'camera') {
-        console.log('[handlePermissionConfirm] Requesting camera permission...');
         const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-        console.log('[handlePermissionConfirm] Camera permission result:', permissionResult);
         
         if (permissionResult.granted) {
           const result = await ImagePicker.launchCameraAsync({
@@ -224,9 +204,7 @@ export default function AgregarScreen() {
           );
         }
       } else {
-        console.log('[handlePermissionConfirm] Requesting gallery permission...');
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        console.log('[handlePermissionConfirm] Gallery permission result:', permissionResult);
         
         if (permissionResult.granted) {
           const result = await ImagePicker.launchImageLibraryAsync({
@@ -250,7 +228,6 @@ export default function AgregarScreen() {
         }
       }
     } catch (error) {
-      console.error('[handlePermissionConfirm] Error:', error);
       showAlert('Error', 'Error al solicitar permisos', [
         { text: 'OK', onPress: hideAlert }
       ]);
@@ -258,7 +235,6 @@ export default function AgregarScreen() {
   };
 
   const handlePermissionCancel = () => {
-    console.log('[handlePermissionCancel] User cancelled permission request');
     setPermissionModalVisible(false);
   };
 
@@ -378,7 +354,6 @@ export default function AgregarScreen() {
       showAlert('Error', 'Debes iniciar sesión para agregar libros', [
         { text: 'OK', onPress: hideAlert }
       ]);
-      console.error('[DEBUG] Usuario no autenticado:', user);
       return;
     }
     
@@ -401,8 +376,6 @@ export default function AgregarScreen() {
         id_usuario: user.id_usuario,
       };
 
-      console.log('[DEBUG] Libro a guardar:', bookToSave);
-      
       const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.BOOKS), {
         method: 'POST',
         headers: { 
