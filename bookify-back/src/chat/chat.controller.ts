@@ -15,17 +15,12 @@ import {
 import { ChatService } from './chat.service';
 import { CreateChatDto, SendMessageDto } from './chat.dto';
 
-// NOTA: JwtAuthGuard comentado temporalmente para restaurar funcionalidad
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-
-// @UseGuards(JwtAuthGuard) // Comentado temporalmente
 @Controller('chat')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Get('my-chats')
   async getMyChats(@Request() req) {
-    // Revertido a versión anterior que funciona
     const userId = req.user?.id_usuario || req.query.userId;
     
     if (!userId) {
@@ -137,11 +132,7 @@ export class ChatController {
     };
   }
 
-  /**
-   * Obtener TODOS los intercambios entre los dos usuarios del chat
-   * GET /chat/:chatId/exchanges
-   * IMPORTANTE: Esta ruta debe ir ANTES de :chatId/exchange para evitar conflictos
-   */
+
   @Get(':chatId/exchanges')
   async getChatExchanges(@Param('chatId') chatId: string) {
     try {
@@ -160,10 +151,8 @@ export class ChatController {
     }
   }
 
-  /**
-   * Obtener información del intercambio asociado al chat
-   * GET /chat/:chatId/exchange
-   */
+  //información del intercambio
+
   @Get(':chatId/exchange')
   async getChatExchange(@Param('chatId') chatId: string) {
     try {
@@ -188,10 +177,7 @@ export class ChatController {
     }
   }
 
-  /**
-   * Obtener solo estado de confirmaciones y ubicación (para polling ligero)
-   * GET /chat/:chatId/exchange-status
-   */
+  //confirmaciones y ubicación 
   @Get(':chatId/exchange-status')
   async getChatExchangeStatus(@Param('chatId') chatId: string) {
     try {
@@ -216,13 +202,6 @@ export class ChatController {
     }
   }
 
-  /**
-   * Endpoint compuesto: retorna chat + exchange + participants en una sola consulta
-   * Reduce round-trips para cargar pantalla de chat completa
-   * GET /chat/:chatId/payload?userId=123
-   * 
-   * ⚡️ OPTIMIZADO: Usa Promise.all para paralelizar queries independientes
-   */
   @Get(':chatId/payload')
   async getChatPayload(
     @Param('chatId') chatId: string,
@@ -239,7 +218,6 @@ export class ChatController {
         };
       }
 
-      // Verificar que el usuario pertenece al chat
       const isMember = await this.chatService.verifyUserInChat(cid, uid);
       if (!isMember) {
         return {
@@ -247,8 +225,6 @@ export class ChatController {
           message: 'No tienes acceso a este chat',
         };
       }
-
-      // ⚡️ Ejecutar queries independientes en PARALELO (optimización mantenida)
       const [participants, exchange, messages] = await Promise.all([
         this.chatService.getChatParticipants(cid, uid),
         this.chatService.getChatExchange(cid),
@@ -272,10 +248,7 @@ export class ChatController {
     }
   }
 
-  /**
-   * Borrar chat y cancelar todos los intercambios relacionados
-   * DELETE /chat/:chatId?userId=123
-   */
+  // Borrar chat
   @Delete(':chatId')
   @HttpCode(HttpStatus.OK)
   async deleteChat(

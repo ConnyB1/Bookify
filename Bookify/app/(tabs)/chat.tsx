@@ -38,9 +38,8 @@ export default function ChatListScreen() {
   const [editMode, setEditMode] = useState(false);
   const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
 
-  // Listener para nuevos chats
   const handleNewChat = useCallback(() => {
-    console.log('🆕 [Chat List] Nuevo chat detectado, recargando...');
+    console.log('Nuevo chat detectado, recargando...');
     loadChats();
   }, []);
 
@@ -52,7 +51,6 @@ export default function ChatListScreen() {
   useEffect(() => {
     if (user) {
       loadChats();
-      // No polling automático - el usuario actualiza con pull-to-refresh
     } else {
       setLoading(false);
     }
@@ -68,30 +66,24 @@ export default function ChatListScreen() {
     if (!user) return;
 
     try {
-      console.log(`🔍 [Chat List] Cargando chats para usuario ${user.id_usuario}`);
-      
       const response = await fetch(
         buildApiUrl(`/chat/my-chats?userId=${user.id_usuario}`)
       );
-      
-      console.log(`📡 [Chat List] Response status:`, response.status);
       
       if (!response.ok) {
         throw new Error('Error al cargar chats');
       }
 
       const result = await response.json();
-      
-      console.log(`📦 [Chat List] Result:`, JSON.stringify(result, null, 2));
-      
+
       if (result.success && result.data) {
-        console.log(`✅ [Chat List] ${result.data.length} chats encontrados`);
+        console.log(`${result.data.length} chats encontrados`);
         setChats(result.data);
       } else {
-        console.log(`⚠️ [Chat List] Sin datos o error:`, result.message);
+        console.log(`Sin datos o error:`, result.message);
       }
     } catch (error) {
-      console.error('❌ [Chat List] Error loading chats:', error);
+      console.error('Error loading chats:', error);
     } finally {
       setLoading(false);
     }

@@ -11,7 +11,7 @@ interface LocationData {
   place_id?: string | null;
 }
 
-export function useLocationConfirmation(exchangeId: string | string[]) {
+export function useConfirmacionUbicacion(exchangeId: string | string[]) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();

@@ -27,7 +27,6 @@ export class ChatService {
   ) {}
 
   async getUserChats(userId: number): Promise<ChatPreviewDto[]> {
-    console.log(`[OPTIMIZADO] Obteniendo chats para usuario ${userId}`);
     const chatsWithData = await this.chatUsuarioRepository
       .createQueryBuilder('cu')
       .innerJoin('chat_usuario', 'cu_other', 'cu_other.id_chat = cu.id_chat AND cu_other.id_usuario != :userId', { userId })
@@ -60,8 +59,6 @@ export class ChatService {
       .orderBy('timestamp', 'DESC')
       .getRawMany();
 
-    console.log(`[OPTIMIZADO] ${chatsWithData.length} chats obtenidos en 1 query`);
-
     return chatsWithData.map((row) => ({
       id_chat: row.id_chat,
       otherUserId: row.other_user_id,
@@ -75,7 +72,6 @@ export class ChatService {
   
 
   async getChatMessages(chatId: number, userId: number, limit = 200): Promise<MessageDto[]> {
-    // Verificar que el usuario pertenece al chat
     const isMember = await this.chatUsuarioRepository.findOne({
       where: { id_chat: chatId, id_usuario: userId },
     });
@@ -106,9 +102,7 @@ export class ChatService {
   }
 
 
-  // ✅ ÚNICA VERSIÓN DE SEND MESSAGE (CON NOTIFICACIONES)
   async sendMessage(userId: number, dto: SendMessageDto): Promise<MessageDto> {
-    // 1. Verificar membresía
     const isMember = await this.chatUsuarioRepository.findOne({
       where: { id_chat: dto.id_chat, id_usuario: userId },
     });
@@ -117,7 +111,6 @@ export class ChatService {
       throw new BadRequestException('No tienes acceso a este chat');
     }
 
-    // 2. Guardar el mensaje
     const mensaje = this.mensajeRepository.create({
       id_chat: dto.id_chat,
       id_usuario_emisor: userId,
@@ -125,8 +118,6 @@ export class ChatService {
     });
 
     const savedMessage = await this.mensajeRepository.save(mensaje);
-
-    // 3. Lógica de Notificación Push (NUEVO)
     try {
       const chatParticipants = await this.chatUsuarioRepository.find({
         where: { id_chat: dto.id_chat },
@@ -149,7 +140,6 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
       console.error('Error enviando push notification:', error);
     }
 
-    // 4. Devolver el mensaje recién creado
     const fullMessage = await this.mensajeRepository.findOne({
       where: { id_mensaje: savedMessage.id_mensaje },
       relations: ['emisor'],
@@ -172,13 +162,7 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
       },
     };
   }
-
-  /**
-   * Obtener solo el estado de confirmaciones y ubicación (query ligero para polling)
-   * OPTIMIZADO: Un solo query con JOIN en lugar de dos queries separadas
-   */
   async getChatExchangeStatus(chatId: number) {
-    // Query única con JOIN entre chat e intercambio
     const result = await this.chatRepository
       .createQueryBuilder('chat')
       .innerJoin('intercambio', 'i', 'i.id_intercambio = chat.id_intercambio')
@@ -210,13 +194,7 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     };
   }
 
-  /**
-   * Crear un nuevo chat entre dos usuarios
-   */
   async createChat(dto: CreateChatDto): Promise<{ id_chat: number; message: string }> {
-    console.log(`Intentando crear chat entre usuarios ${dto.id_usuario1} y ${dto.id_usuario2}`);
-    
-    // Verificar que los usuarios existen
     const user1 = await this.usuarioRepository.findOne({ 
       where: { id_usuario: dto.id_usuario1 } 
     });
@@ -225,39 +203,31 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     });
 
     if (!user1 || !user2) {
-      console.error(`Usuario no encontrado: user1=${!!user1}, user2=${!!user2}`);
       throw new NotFoundException('Uno o ambos usuarios no existen');
     }
 
     if (dto.id_usuario1 === dto.id_usuario2) {
-      console.error('Intento de crear chat consigo mismo');
       throw new BadRequestException('No puedes crear un chat contigo mismo');
     }
 
-    // Verificar si ya existe un chat entre estos usuarios
     const existingChat = await this.findExistingChat(dto.id_usuario1, dto.id_usuario2);
     if (existingChat) {
-      console.log(`Chat ya existe: ${existingChat}`);
       return {
         id_chat: existingChat,
         message: 'Ya existe un chat entre estos usuarios',
       };
     }
 
-    // Crear el chat
     const chat = this.chatRepository.create({
       id_intercambio: dto.id_intercambio || null,
     });
 
     const savedChat = await this.chatRepository.save(chat);
-    console.log(`Chat creado con ID: ${savedChat.id_chat}`);
 
-    // Asociar usuarios al chat
     await this.chatUsuarioRepository.save([
       { id_chat: savedChat.id_chat, id_usuario: dto.id_usuario1 },
       { id_chat: savedChat.id_chat, id_usuario: dto.id_usuario2 },
     ]);
-    console.log(`Usuarios asociados al chat ${savedChat.id_chat}`);
 
     return {
       id_chat: savedChat.id_chat,
@@ -265,22 +235,15 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     };
   }
 
-  /**
-   * Buscar chat existente entre dos usuarios
-   * ⚡️ OPTIMIZADO: Un solo query con JOIN en lugar de N+1
-   */
   private async findExistingChat(userId1: number, userId2: number): Promise<number | null> {
-    // Query única que busca un id_chat donde AMBOS usuarios estén presentes
     const result = await this.chatUsuarioRepository
       .createQueryBuilder('cu1')
       .select('cu1.id_chat')
-      // Unir la tabla consigo misma para buscar el otro usuario
       .innerJoin(
         'chat_usuario',
         'cu2',
         'cu1.id_chat = cu2.id_chat'
       )
-      // cu1 debe ser el usuario 1 Y cu2 debe ser el usuario 2
       .where('cu1.id_usuario = :userId1', { userId1 })
       .andWhere('cu2.id_usuario = :userId2', { userId2 })
       .getRawOne();
@@ -294,7 +257,6 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     userId: number, 
     sinceTimestamp: string
   ): Promise<MessageDto[]> {
-    // Verificar que el usuario pertenece al chat
     const isMember = await this.chatUsuarioRepository.findOne({
       where: { id_chat: chatId, id_usuario: userId },
     });
@@ -324,13 +286,7 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
       },
     }));
   }
-
-  /**
-   * Obtener información del intercambio asociado a un chat
-   * OPTIMIZADO: Un solo query con JOIN en lugar de dos queries separadas
-   */
   async getChatExchange(chatId: number) {
-    // Verificar que el chat tenga intercambio con un solo query
     const chatInfo = await this.chatRepository
       .createQueryBuilder('chat')
       .select(['chat.id_chat', 'chat.id_intercambio'])
@@ -342,7 +298,6 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
       return null;
     }
 
-    // Ahora sí, obtener el intercambio completo con todas sus relaciones
     const intercambio = await this.intercambioRepository.findOne({
       where: { id_intercambio: chatInfo.id_intercambio },
       relations: [
@@ -368,16 +323,16 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
       id_usuario_solicitante: intercambio.id_usuario_solicitante_fk,
       id_usuario_solicitante_receptor: intercambio.id_usuario_solicitante_receptor_fk,
       estado_propuesta: intercambio.estado_propuesta,
-      // Campos de ubicación de encuentro
+      // ubicación de encuentro
       ubicacion_encuentro_lat: intercambio.ubicacion_encuentro_lat,
       ubicacion_encuentro_lng: intercambio.ubicacion_encuentro_lng,
       ubicacion_encuentro_nombre: intercambio.ubicacion_encuentro_nombre,
       ubicacion_encuentro_direccion: intercambio.ubicacion_encuentro_direccion,
       ubicacion_encuentro_place_id: intercambio.ubicacion_encuentro_place_id,
-      // Campos de confirmación bilateral
+      // confirmación 
       confirmacion_solicitante: intercambio.confirmacion_solicitante,
       confirmacion_receptor: intercambio.confirmacion_receptor,
-      // Nombres de usuarios
+      // nombres de usuarios
       nombre_usuario_solicitante: intercambio.usuario_solicitante.nombre_usuario,
       nombre_usuario_receptor: intercambio.usuario_solicitante_receptor.nombre_usuario,
       libro_solicitado: {
@@ -409,12 +364,8 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     };
   }
 
-  /**
-   * Obtener TODOS los intercambios entre los dos usuarios de un chat
-   * Permite múltiples intercambios en el mismo chat
-   */
+
   async getChatExchanges(chatId: number) {
-    // Obtener los usuarios del chat
     const chatUsuarios = await this.chatUsuarioRepository.find({
       where: { id_chat: chatId },
       relations: ['usuario'],
@@ -428,8 +379,6 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     const userId2 = chatUsuarios[1].id_usuario;
 
     // Buscar todos los intercambios entre estos dos usuarios
-    // Solo se muestran intercambios aceptados o completados (no pending ni rejected)
-    // Los intercambios pending deben ser aceptados primero mediante notificación
     const intercambios = await this.intercambioRepository
       .createQueryBuilder('intercambio')
       .leftJoinAndSelect('intercambio.libro_solicitado', 'libro_solicitado')
@@ -499,9 +448,6 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     }));
   }
 
-  /**
-   * Verificar si un usuario pertenece a un chat
-   */
   async verifyUserInChat(chatId: number, userId: number): Promise<boolean> {
     const member = await this.chatUsuarioRepository.findOne({
       where: { id_chat: chatId, id_usuario: userId },
@@ -509,9 +455,6 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     return !!member;
   }
 
-  /**
-   * Obtener participantes del chat (excluyendo al usuario actual)
-   */
   async getChatParticipants(chatId: number, currentUserId: number) {
     const participants = await this.chatUsuarioRepository
       .createQueryBuilder('cu')
@@ -528,21 +471,12 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     }));
   }
 
-  /**
-   * Borrar chat y cancelar todos los intercambios relacionados
-   * 1. Verifica que el usuario pertenece al chat
-   * 2. Obtiene todos los intercambios entre los usuarios del chat
-   * 3. Cancela (rechaza) todos los intercambios activos
-   * 4. Elimina mensajes, usuarios del chat, y finalmente el chat
-   */
   async deleteChat(chatId: number, userId: number): Promise<void> {
-    // Verificar que el usuario pertenece al chat
     const isMember = await this.verifyUserInChat(chatId, userId);
     if (!isMember) {
       throw new ForbiddenException('No tienes permiso para eliminar este chat');
     }
 
-    // Obtener participantes del chat
     const chatUsuarios = await this.chatUsuarioRepository.find({
       where: { id_chat: chatId },
       relations: ['usuario'],
@@ -555,7 +489,6 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
     const userId1 = chatUsuarios[0].id_usuario;
     const userId2 = chatUsuarios[1].id_usuario;
 
-    // Buscar TODOS los intercambios entre estos usuarios (bidireccional)
     const intercambios = await this.intercambioRepository
       .createQueryBuilder('intercambio')
       .where(
@@ -567,23 +500,15 @@ const emisor = await this.usuarioRepository.findOne({ where: { id_usuario: userI
       })
       .getMany();
 
-    // Cancelar todos los intercambios activos (cambiar estado a 'rejected')
     for (const intercambio of intercambios) {
       intercambio.estado_propuesta = EstadoPropuesta.REJECTED;
       await this.intercambioRepository.save(intercambio);
-      console.log(`[deleteChat] Intercambio ${intercambio.id_intercambio} cancelado`);
     }
 
-    // Eliminar mensajes del chat
     await this.mensajeRepository.delete({ id_chat: chatId });
-    console.log(`[deleteChat] Mensajes del chat ${chatId} eliminados`);
 
-    // Eliminar relaciones chat_usuario
     await this.chatUsuarioRepository.delete({ id_chat: chatId });
-    console.log(`[deleteChat] Usuarios del chat ${chatId} eliminados`);
 
-    // Eliminar el chat
     await this.chatRepository.delete({ id_chat: chatId });
-    console.log(`[deleteChat] Chat ${chatId} eliminado`);
   }
 }

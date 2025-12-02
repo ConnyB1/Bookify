@@ -64,7 +64,7 @@ export async function buscarlugarescercanos({ latitude, longitude, radius = 2000
     const { data } = await axios.post(
       'https://overpass-api.de/api/interpreter',
       `[out:json][timeout:25];(${queries});out body;>;out skel qt;`,
-      { headers: { 'Content-Type': 'text/plain' }, timeout: 30000 }
+      { headers: { 'Content-Type': 'text/plain' }, timeout: 15000 }
     );
 
     if (!data?.elements) return [];
@@ -103,66 +103,14 @@ export async function buscarlugarescercanos({ latitude, longitude, radius = 2000
     return placesWithDistance
       .sort((a: OSMPlace, b: OSMPlace) => (a.distance || 0) - (b.distance || 0))
       .slice(0, 20);
-  } catch (error) {
-    console.error('[OSM] Error:', error);
-    return [];
-  }
-}
-
-export async function buscarlugar(query: string, location?: { lat: number; lng: number }): Promise<OSMPlace[]> {
-  try {
-    const params: any = { q: query, format: 'json', addressdetails: 1, limit: 10 };
-    if (location) {
-      Object.assign(params, {
-        lat: location.lat,
-        lon: location.lng,
-        bounded: 1,
-        viewbox: `${location.lng - 0.1},${location.lat - 0.1},${location.lng + 0.1},${location.lat + 0.1}`
-      });
-    }
-
-    const { data } = await axios.get('https://nominatim.openstreetmap.org/search', {
-      params,
-      headers: { 'User-Agent': 'Bookify-App/1.0' }
-    });
-
-    if (!Array.isArray(data)) return [];
-
-    if (location) {
-      const points = data.map((p: any) => ({
-        lat1: location.lat,
-        lon1: location.lng,
-        lat2: parseFloat(p.lat),
-        lon2: parseFloat(p.lon),
-      }));
-
-      const distances = await obtenerdistancias(points);
-
-      return data.map((p: any, index: number) => ({
-        place_id: p.place_id,
-        name: p.name || p.display_name.split(',')[0],
-        display_name: p.display_name,
-        lat: p.lat,
-        lon: p.lon,
-        type: p.type,
-        category: p.class,
-        distance: distances[index],
-      }));
-    }
-
-    return data.map((p: any) => ({
-      place_id: p.place_id,
-      name: p.name || p.display_name.split(',')[0],
-      display_name: p.display_name,
-      lat: p.lat,
-      lon: p.lon,
-      type: p.type,
-      category: p.class,
-      distance: undefined,
-    }));
-  } catch (error) {
-    console.error('[OSM] Search error:', error);
-    return [];
+  } catch (error: any) {
+    const errorMsg = error.code === 'ECONNABORTED' 
+      ? 'Tiempo de espera agotado. Verifica tu conexión a internet.'
+      : error.response?.status === 504 
+        ? 'El servicio de mapas está temporalmente sobrecargado. Intenta de nuevo en unos segundos.'
+        : 'Error al buscar lugares cercanos';
+    console.error('[OSM] Error:', errorMsg, error);
+    throw new Error(errorMsg);
   }
 }
 

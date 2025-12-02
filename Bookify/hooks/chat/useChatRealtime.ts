@@ -35,7 +35,6 @@ export function useChatRealtime({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const startPolling = (loadNewMessages: () => Promise<void>) => {
-    console.log('Iniciando polling cada 2 segundos...');
     pollingIntervalRef.current = setInterval(() => {
       if (chatId && userId) {
         loadNewMessages();
@@ -54,7 +53,6 @@ export function useChatRealtime({
     if (channelRef.current && supabase) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
-      console.log('🧹 Cleaned up Realtime subscription');
     }
     stopPolling();
   };
@@ -70,12 +68,10 @@ export function useChatRealtime({
         },
       });
 
-    // Configurar listeners de presencia si se proporciona el callback
     if (onPresenceSetup) {
       onPresenceSetup(channel);
     }
 
-    // Configurar listener de nuevos mensajes
     channel
       .on(
         'postgres_changes',
@@ -88,18 +84,15 @@ export function useChatRealtime({
         async (payload) => {
           const newMessageData = payload.new as any;
           if (newMessageData.id_usuario_emisor === currentUser.id_usuario) {
-            console.log('⏭️ Ignorando mi propio mensaje');
             return;
           }
 
-          // Cargar mensajes actualizados
           try {
             const response = await fetch(
               buildApiUrl(`/chat/${chatId}/messages?userId=${userId}`)
             );
             const result = await response.json();
             if (result.success && result.data) {
-              console.log('🔄 Actualizando lista de mensajes (nuevo mensaje detectado)');
               onMessagesUpdate(result.data);
               setTimeout(() => {
                 onScrollToEnd();
@@ -118,7 +111,6 @@ export function useChatRealtime({
             online_at: new Date().toISOString(),
           });
         } else if (status === 'CHANNEL_ERROR') {
-          // Fallback a polling se manejará en el component
         } else {
           console.log(`ealtime status: ${status}`);
         }

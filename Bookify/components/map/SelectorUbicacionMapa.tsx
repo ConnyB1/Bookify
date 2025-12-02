@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import {View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, ScrollView,} from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, Circle } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useUserLocation } from '../../hooks/location/useUserLocation';
-import { usePlaceSearch } from '../../hooks/location/usePlaceSearch';
-import { useLocationConfirmation } from '../../hooks/location/useLocationConfirmation';
+import { useUbicacionUsuario } from '../../hooks/location/useUserLocation';
+import { usarbusqueda } from '../../hooks/location/usePlaceSearch';
+import { useConfirmacionUbicacion } from '../../hooks/location/useLocationConfirmation';
 import { useAlertDialog } from '../../hooks/useAlertDialog';
 import { PlaceTypeFilters } from '../location/PlaceTypeFilters';
 import { PlacesList } from '../location/PlacesList';
@@ -36,17 +36,13 @@ export function MapLocationSelector({
   initialLocation,
   onConfirm,
 }: MapLocationSelectorProps) {
-  const { location: userLocation, loading: locationLoading } = useUserLocation();
-  const { places, searching, selectedPlace, searchPlaces, selectPlace } = usePlaceSearch();
-  const { confirmLocation, confirming, alertVisible, alertConfig, hideAlert } = useLocationConfirmation(exchangeId);
-  const { showAlert: showLocalAlert, hideAlert: hideLocalAlert, alertVisible: localAlertVisible, alertConfig: localAlertConfig } = useAlertDialog();
+  const { location: userLocation, loading: locationLoading } = useUbicacionUsuario();
+  const { places, searching, selectedPlace, buscarlugares, selectPlace } = usarbusqueda();
+  const { confirmLocation, confirming, alertVisible, alertConfig, hideAlert } = useConfirmacionUbicacion(exchangeId);
 
   const [selectedType, setSelectedType] = useState('cafe');
-  const [searchRadius, setSearchRadius] = useState(5); // Radio en km
+  const [searchRadius, setSearchRadius] = useState(5);
   const [showRadiusSelector, setShowRadiusSelector] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<LatLng | null>(null);
-  const [locationName, setLocationName] = useState('');
-  const [locationAddress, setLocationAddress] = useState('');
   const [mapRegion, setMapRegion] = useState({
     latitude: initialLocation?.latitude || 19.432608,
     longitude: initialLocation?.longitude || -99.133209,
@@ -56,15 +52,14 @@ export function MapLocationSelector({
 
   useEffect(() => {
     if (userLocation) {
-      const delta = searchRadius / 111; // Aproximación: 1 grado ≈ 111 km
+      const delta = searchRadius / 111; 
       setMapRegion({
         ...userLocation,
         latitudeDelta: delta,
         longitudeDelta: delta,
       });
       if (mode === 'osm') {
-        // Convertir km a metros para la API
-        searchPlaces(userLocation.latitude, userLocation.longitude, selectedType, searchRadius * 1000);
+        buscarlugares(userLocation.latitude, userLocation.longitude, selectedType, searchRadius * 1000);
       }
     }
   }, [userLocation, mode, searchRadius]);
@@ -93,62 +88,30 @@ export function MapLocationSelector({
     }
   };
 
-  const handleMapPress = (event: any) => {
-    if (mode === 'manual') {
-      const { latitude, longitude } = event.nativeEvent.coordinate;
-      setSelectedLocation({ latitude, longitude });
-      setMapRegion({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 });
-    }
-  };
-
   const handleConfirmLocation = async () => {
-    if (mode === 'osm') {
-      if (!selectedPlace) return;
-      const result = await confirmLocation({
+    if (!selectedPlace) return;
+    
+    const result = await confirmLocation({
+      lat: parseFloat(selectedPlace.lat),
+      lng: parseFloat(selectedPlace.lon),
+      nombre: selectedPlace.name,
+      direccion: selectedPlace.display_name,
+      place_id: selectedPlace.place_id,
+    });
+    
+    if (result && onConfirm) {
+      onConfirm({
         lat: parseFloat(selectedPlace.lat),
         lng: parseFloat(selectedPlace.lon),
         nombre: selectedPlace.name,
-        direccion: selectedPlace.display_name,
-        place_id: selectedPlace.place_id,
       });
-      if (result && onConfirm) {
-        onConfirm({
-          lat: parseFloat(selectedPlace.lat),
-          lng: parseFloat(selectedPlace.lon),
-          nombre: selectedPlace.name,
-        });
-      }
-    } else if (mode === 'manual') {
-      if (!selectedLocation) {
-        showLocalAlert('Error', 'Por favor, selecciona una ubicación en el mapa', [
-          { text: 'OK', onPress: hideLocalAlert }
-        ]);
-        return;
-      }
-      if (!locationName.trim()) {
-        showLocalAlert('Error', 'Por favor, ingresa un nombre para el lugar', [
-          { text: 'OK', onPress: hideLocalAlert }
-        ]);
-        return;
-      }
-      const result = await confirmLocation({
-        lat: selectedLocation.latitude,
-        lng: selectedLocation.longitude,
-        nombre: locationName,
-        direccion: locationAddress || 'Ubicación personalizada',
-        place_id: null,
-      });
-      if (result && onConfirm) {
-        onConfirm({ lat: selectedLocation.latitude, lng: selectedLocation.longitude, nombre: locationName });
-      }
     }
   };
 
   const handleChangeType = (type: string) => {
     setSelectedType(type);
     if (userLocation && mode === 'osm') {
-      // Convertir km a metros para la API
-      searchPlaces(userLocation.latitude, userLocation.longitude, type, searchRadius * 1000);
+      buscarlugares(userLocation.latitude, userLocation.longitude, type, searchRadius * 1000);
     }
   };
 
@@ -156,8 +119,7 @@ export function MapLocationSelector({
     setSearchRadius(radius);
     setShowRadiusSelector(false);
     if (userLocation && mode === 'osm') {
-      // Convertir km a metros para la API
-      searchPlaces(userLocation.latitude, userLocation.longitude, selectedType, radius * 1000);
+      buscarlugares(userLocation.latitude, userLocation.longitude, selectedType, radius * 1000);
     }
   };
 
@@ -170,26 +132,23 @@ export function MapLocationSelector({
       <MapView
         style={styles.map}
         region={mapRegion}
-        onPress={handleMapPress}
         provider={PROVIDER_GOOGLE}
         showsUserLocation
         showsMyLocationButton={false}
         mapType="standard"
       >
-        {/* Círculo de radio de búsqueda */}
         {mode === 'osm' && userLocation && (
           <Circle
             center={userLocation}
-            radius={searchRadius * 1000} // Convertir km a metros
+            radius={searchRadius * 1000} 
             fillColor="rgba(213, 0, 255, 0.1)"
             strokeColor="rgba(213, 0, 255, 0.3)"
             strokeWidth={2}
           />
         )}
 
-        {/* OSM mode: markers de lugares */}
         {mode === 'osm' &&
-          places.map((place) => (
+          places.map((place: any) => (
             <Marker
               key={place.place_id}
               coordinate={{
@@ -201,29 +160,8 @@ export function MapLocationSelector({
               pinColor={selectedPlace?.place_id === place.place_id ? '#d500ff' : '#FF6B6B'}
             />
           ))}
-
-        {/* Manual mode: marker de ubicación seleccionada */}
-        {mode === 'manual' && selectedLocation && (
-          <Marker coordinate={selectedLocation} pinColor="#d500ff" title="Lugar de encuentro">
-            <View style={styles.markerContainer}>
-              <Ionicons name="location" size={40} color="#d500ff" />
-            </View>
-          </Marker>
-        )}
       </MapView>
-      {/* Instrucciones para modo manual */}
-      {mode === 'manual' && (
-        <View style={styles.instructionsContainer}>
-          <View style={styles.instructionsContent}>
-            <Ionicons name="information-circle" size={22} color="#d500ff" />
-            <Text style={styles.instructionsText}>
-              Toca el mapa para seleccionar el lugar
-            </Text>
-          </View>
-        </View>
-      )}
 
-      {/* Filtros para modo OSM */}
       {mode === 'osm' && (
         <View style={styles.filters}>
           <PlaceTypeFilters
@@ -233,10 +171,8 @@ export function MapLocationSelector({
           />
         </View>
       )}
-      {/* Selector de radio de búsqueda y botón de geolocalización */}
       {mode === 'osm' && (
         <View style={styles.radiusContainer}>
-          {/* Botón de geolocalización */}
           <LinearGradient
             colors={['#6100BD', '#D500FF']}
             start={{ x: 0, y: 0 }}
@@ -250,8 +186,6 @@ export function MapLocationSelector({
               <Ionicons name="locate" size={20} color="#fff" />
             </TouchableOpacity>
           </LinearGradient>
-
-          {/* Botón de radio con dropdown */}
           <View>
             <LinearGradient
               colors={['#6100BD', '#D500FF']}
@@ -311,7 +245,6 @@ export function MapLocationSelector({
         </View>
       )}
 
-      {/* Indicador de búsqueda */}
       {mode === 'osm' && searching && (
         <View style={styles.searching}>
           <ActivityIndicator size="small" color="#d500ff" />
@@ -319,14 +252,12 @@ export function MapLocationSelector({
         </View>
       )}
 
-      {/* Lista de lugares para modo OSM */}
       {mode === 'osm' && places.length > 0 && !selectedPlace && (
         <View style={styles.places}>
           <PlacesList places={places} selectedPlace={selectedPlace} onSelectPlace={handleSelectPlace} />
         </View>
       )}
 
-      {/* Confirmación para modo OSM */}
       {mode === 'osm' && selectedPlace && (
         <View style={styles.confirm}>
           <LocationConfirmation
@@ -338,89 +269,12 @@ export function MapLocationSelector({
         </View>
       )}
 
-      {/* Formulario para modo manual */}
-      {mode === 'manual' && selectedLocation && (
-        <View style={styles.formContainer}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.formTitle}>Información del Lugar</Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nombre del lugar *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej: Starbucks Centro"
-                placeholderTextColor="#666"
-                value={locationName}
-                onChangeText={setLocationName}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Dirección (opcional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej: Av. Juárez 123"
-                placeholderTextColor="#666"
-                value={locationAddress}
-                onChangeText={setLocationAddress}
-              />
-            </View>
-
-            <View style={styles.coordsInfo}>
-              <Ionicons name="location-outline" size={16} color="#d500ff" />
-              <Text style={styles.coordsText}>
-                {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
-              </Text>
-            </View>
-
-            {(!locationName.trim() || confirming) ? (
-              <TouchableOpacity
-                style={[styles.confirmButton, styles.confirmButtonDisabled]}
-                disabled={true}
-              >
-                {confirming ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                    <Text style={styles.confirmButtonText}>Confirmar Ubicación</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            ) : (
-              <LinearGradient
-                colors={['#6100BD', '#D500FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.confirmButton}
-              >
-                <TouchableOpacity
-                  style={styles.confirmButtonContent}
-                  onPress={handleConfirmLocation}
-                >
-                  <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                  <Text style={styles.confirmButtonText}>Confirmar Ubicación</Text>
-                </TouchableOpacity>
-              </LinearGradient>
-            )}
-          </ScrollView>
-        </View>
-      )}
-
       <CustomAlert
         visible={alertVisible}
         title={alertConfig.title}
         message={alertConfig.message}
         buttons={alertConfig.buttons}
         onClose={hideAlert}
-      />
-      
-      <CustomAlert
-        visible={localAlertVisible}
-        title={localAlertConfig.title}
-        message={localAlertConfig.message}
-        buttons={localAlertConfig.buttons}
-        onClose={hideLocalAlert}
       />
     </SafeAreaView>
   );
@@ -434,12 +288,7 @@ const styles = StyleSheet.create({
   map: { 
     flex: 1 
   },
-  markerContainer: { 
-    alignItems: 'center', 
-    justifyContent: 'center' 
-  },
   
-  // Selector de radio
   radiusContainer: {
     position: 'absolute',
     top: 60,
@@ -514,37 +363,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   
-  // Instrucciones
-  instructionsContainer: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 80,
-    backgroundColor: 'rgba(21, 23, 24, 0.95)',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#d500ff',
-    shadowColor: '#d500ff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  instructionsContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  instructionsText: { 
-    flex: 1, 
-    fontSize: 14, 
-    color: '#fff', 
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  
-  // Filtros y búsqueda
   filters: { 
     position: 'absolute', 
     top: 0, 
@@ -577,7 +395,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // Lista y confirmación
   places: { 
     position: 'absolute', 
     bottom: 0, 
@@ -590,97 +407,5 @@ const styles = StyleSheet.create({
     left: 0, 
     right: 0 
   },
-  
-  // Formulario modo manual
-  formContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: '#1f1f1f',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 2,
-    borderTopColor: '#d500ff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-    maxHeight: '55%',
-  },
-  formTitle: { 
-    fontSize: 20, 
-    fontWeight: '700', 
-    color: '#fff', 
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  inputGroup: { 
-    marginBottom: 16 
-  },
-  inputLabel: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    color: '#ccc', 
-    marginBottom: 8 
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    backgroundColor: '#2a2a2a',
-    color: '#fff',
-  },
-  coordsInfo: { 
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12, 
-    backgroundColor: 'rgba(213, 0, 255, 0.1)', 
-    borderRadius: 10, 
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(213, 0, 255, 0.3)',
-  },
-  coordsText: { 
-    fontSize: 13, 
-    color: '#d500ff', 
-    fontWeight: '600',
-    fontFamily: 'monospace',
-  },
-  confirmButton: {
-    borderRadius: 14,
-    shadowColor: '#d500ff',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
-    overflow: 'hidden',
-  },
-  confirmButtonDisabled: { 
-    backgroundColor: '#555',
-    shadowOpacity: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    gap: 10,
-  },
-  confirmButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    gap: 10,
-    width: '100%',
-  },
-  confirmButtonText: { 
-    fontSize: 17, 
-    fontWeight: '700', 
-    color: '#fff' 
-  },
 });
+

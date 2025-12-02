@@ -1,6 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// ✅ Configuración desde variables de entorno
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
@@ -19,7 +18,7 @@ try {
     },
   });
 } catch (error) {
-  console.error('Error initializing Supabase client:', error);
+  console.error(error);
 }
 
 export const supabase = supabaseClient;

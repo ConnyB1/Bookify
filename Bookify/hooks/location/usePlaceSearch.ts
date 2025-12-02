@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 import { buscarlugarescercanos, OSMPlace } from '../../services/openStreetMap';
 
-interface UsePlaceSearchProps {
-  onSearchComplete?: (places: OSMPlace[]) => void;
+interface usarbusquedaProps {
+  busquedacompletada?: (places: OSMPlace[]) => void;
 }
 
-export function usePlaceSearch({ onSearchComplete }: UsePlaceSearchProps = {}) {
+export function usarbusqueda({ busquedacompletada }: usarbusquedaProps = {}) {
   const [places, setPlaces] = useState<OSMPlace[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<OSMPlace | null>(null);
 
-  const searchPlaces = async (
+  const buscarlugares = async (
     lat: number,
     lng: number,
     type: string,
@@ -26,10 +26,12 @@ export function usePlaceSearch({ onSearchComplete }: UsePlaceSearchProps = {}) {
         type,
       });
       setPlaces(results);
-      if (onSearchComplete) onSearchComplete(results);
+      if (busquedacompletada) busquedacompletada(results);
       return results;
-    } catch (error) {
-      Alert.alert('Error', 'No se pudieron cargar los lugares');
+    } catch (error: any) {
+      console.error('[usePlaceSearch] Error:', error);
+      const errorMsg = error.message || 'No se pudieron cargar los lugares';
+      Alert.alert('Error al buscar lugares', errorMsg);
       return [];
     } finally {
       setSearching(false);
@@ -49,7 +51,7 @@ export function usePlaceSearch({ onSearchComplete }: UsePlaceSearchProps = {}) {
     places,
     searching,
     selectedPlace,
-    searchPlaces,
+    buscarlugares,
     selectPlace,
     clearPlaces,
   };

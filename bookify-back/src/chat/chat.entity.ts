@@ -14,18 +14,18 @@ export class Chat {
   @PrimaryGeneratedColumn()
   id_chat: number;
 
-  @Index() // 📊 Índice para buscar chats por intercambio
+  @Index()
   @Column({ type: 'integer', nullable: true })
   id_intercambio: number | null;
 }
 
 @Entity('chat_usuario')
 export class ChatUsuario {
-  @Index() // 📊 Índice en id_chat para JOIN y búsquedas
+  @Index() 
   @Column({ primary: true })
   id_chat: number;
 
-  @Index() // 📊 Índice en id_usuario para buscar chats de un usuario
+  @Index() 
   @Column({ primary: true })
   id_usuario: number;
 
@@ -39,18 +39,18 @@ export class Mensaje {
   @PrimaryGeneratedColumn()
   id_mensaje: number;
 
-  @Index() // 📊 Índice para buscar mensajes por chat
+  @Index() 
   @Column()
   id_chat: number;
 
-  @Index() // 📊 Índice para buscar mensajes por emisor
+  @Index() 
   @Column()
   id_usuario_emisor: number;
 
   @Column('text')
   contenido_texto: string;
 
-  @Index() // 📊 Índice para ordenar y filtrar por fecha (usado en ORDER BY y WHERE)
+  @Index() 
   @CreateDateColumn({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   timestamp: Date;
 

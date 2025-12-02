@@ -52,14 +52,12 @@ export default function ChatRoomScreen() {
   const [hasRated, setHasRated] = React.useState(false);
   const { alertVisible, alertConfig, showAlert, hideAlert } = useAlertDialog();
 
-  // Información del otro usuario
   const otherUser: ChatUser = {
     id: otherUserIdNum,
     name: userName || 'Chat',
     photo: otherUserPhoto,
   };
 
-  // Hook de mensajes
   const {
     messages,
     loading,
@@ -72,10 +70,8 @@ export default function ChatRoomScreen() {
     onRefresh,
   } = useChatMessages(chatId, user?.id_usuario);
 
-  // Hook de presencia
   const { isOnline, setupPresence } = useChatPresence();
 
-  // Hook de intercambio
   const {
     exchanges,
     selectedExchange,
@@ -87,12 +83,10 @@ export default function ChatRoomScreen() {
     reloadExchange,
   } = useChatExchange(chatId, user?.id_usuario);
 
-  // Función para hacer scroll al final
   const scrollToEnd = () => {
     flatListRef.current?.scrollToEnd({ animated: true });
   };
 
-  // Hook de realtime
   const { startPolling, stopPolling } = useChatRealtime({
     chatId,
     userId: user?.id_usuario,
@@ -110,17 +104,12 @@ export default function ChatRoomScreen() {
     onScrollToEnd: scrollToEnd,
   });
 
-  // Efecto inicial
   useEffect(() => {
     if (!chatId || !user) {
-      showAlert('Error', 'Chat inválido', [{ text: 'OK', onPress: hideAlert }]);
       router.back();
       return;
     }
-
     loadMessages();
-
-    // Si Supabase no está habilitado, usar polling
     if (!isSupabaseEnabled) {
       startPolling(loadNewMessages);
     }
@@ -162,13 +151,8 @@ export default function ChatRoomScreen() {
   const handleSelectBook = () => {
     if (!selectedExchange) return;
     
-    // El receptor selecciona un libro del solicitante
-    // otherUserId es el ID del solicitante
     const otherUserId = selectedExchange.id_usuario_solicitante;
     
-    console.log('[Chat] Navegando a seleccionar libro del usuario:', otherUserId);
-    
-    // Navegar a una pantalla para seleccionar un libro del solicitante
     router.push({
       pathname: '/select-book-for-exchange',
       params: {
@@ -253,7 +237,6 @@ export default function ChatRoomScreen() {
         <ChatInput onSend={handleSendMessage} sending={sending} />
       </KeyboardAvoidingView>
       
-      {/* Modal de detalles de intercambio */}
       {selectedExchange && (
         <ExchangeDetailsModal
           visible={showExchangeModal}
@@ -266,7 +249,6 @@ export default function ChatRoomScreen() {
         />
       )}
       
-      {/* Modal de calificación */}
       {selectedExchange && (
         <RatingModal
           visible={showRatingModal}
@@ -277,7 +259,6 @@ export default function ChatRoomScreen() {
           currentUserId={user?.id_usuario || 0}
           exchangeId={selectedExchange.id_intercambio}
           onRatingSubmitted={() => {
-            console.log('Calificación enviada exitosamente');
             setHasRated(true);
             showAlert('Éxito', 'Tu calificación ha sido enviada exitosamente', [{ text: 'Genial', onPress: hideAlert }]);
           }}

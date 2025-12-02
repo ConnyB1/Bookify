@@ -7,7 +7,7 @@ interface LocationCoords {
   longitude: number;
 }
 
-export function useUserLocation() {
+export function useUbicacionUsuario() {
   const [location, setLocation] = useState<LocationCoords | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
