@@ -113,9 +113,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setTokens(null);
   };
 
-  // ======================================================
-  // 2. FUNCIÓN 'updateUser' AÑADIDA DE VUELTA
-  // ======================================================
   const updateUser = async (userData: UserData) => {
     try {
       // Guardar los datos actualizados en el almacenamiento (usando tu util)

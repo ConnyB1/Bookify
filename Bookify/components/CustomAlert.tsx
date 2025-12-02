@@ -41,7 +41,6 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   const getIcon = () => {
     const titleLower = title.toLowerCase();
     
-    // --- Lógica de Iconos ---
     if (titleLower.includes('error')) {
       return { name: 'close-circle-outline' as keyof typeof Ionicons.glyphMap, color: '#ff4444' };
     }
@@ -49,19 +48,14 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
       return { name: 'checkmark-circle-outline' as keyof typeof Ionicons.glyphMap, color: '#00C851' };
     }
     
-    // ======================================================
-    // CORRECCIÓN: Añadido para detectar alertas de fotos
-    // ======================================================
     if (titleLower.includes('foto') || titleLower.includes('imagen')) {
-      return { name: 'image-outline' as keyof typeof Ionicons.glyphMap, color: '#d500ff' }; // Icono de imagen morado
+      return { name: 'image-outline' as keyof typeof Ionicons.glyphMap, color: '#d500ff' };
     }
-    // ======================================================
 
     if (titleLower.includes('confirmar') || titleLower.includes('seguro') || titleLower.includes('sesión')) {
-      return { name: 'help-circle-outline' as keyof typeof Ionicons.glyphMap, color: '#d500ff' }; // Icono de pregunta morado
+      return { name: 'help-circle-outline' as keyof typeof Ionicons.glyphMap, color: '#d500ff' };
     }
     
-    // Si no coincide nada, usa el default (amarillo)
     return { name: iconName, color: iconColor };
   };
 
