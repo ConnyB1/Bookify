@@ -30,7 +30,6 @@ export default function BuscarScreen() {
         <ThemedView style={styles.container}>
           {/* <Header /> descomentar si queremos bookify emasol */}
           <View style={styles.header}>
-            
             <ThemedText style={styles.title}>Buscar</ThemedText>
           </View>
           
