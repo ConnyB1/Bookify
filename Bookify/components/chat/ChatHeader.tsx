@@ -43,38 +43,35 @@ export function ChatHeader({ otherUser, isOnline, onBack, onUserPress, showExcha
         </View>
       </TouchableOpacity>
       
-      {/* Botones de acción lado a lado */}
-      {hasExchange && (
-        <View style={styles.actionsContainer}>
-          {onToggleExchangeCard && (
-            <TouchableOpacity 
-              onPress={onToggleExchangeCard} 
-              style={styles.toggleButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={showExchangeCard ? "swap-horizontal" : "swap-horizontal-outline"} 
-                size={24} 
-                color={showExchangeCard ? "#d500ff" : "#999"} 
-              />
-            </TouchableOpacity>
-          )}
-          
-          {onTogglecalificar && (
-            <TouchableOpacity 
-              onPress={onTogglecalificar} 
-              style={styles.toggleButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={hasRated ? "star" : "star-outline"} 
-                size={24} 
-                color={hasRated ? "#FFD700" : "#999"} 
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
+      <View style={styles.actionsContainer}>
+        {onToggleExchangeCard && (
+          <TouchableOpacity 
+            onPress={onToggleExchangeCard} 
+            style={styles.toggleButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name={showExchangeCard ? "swap-horizontal" : "swap-horizontal-outline"} 
+              size={24} 
+              color={showExchangeCard ? "#d500ff" : "#999"} 
+            />
+          </TouchableOpacity>
+        )}
+        
+        {onTogglecalificar && (
+          <TouchableOpacity 
+            onPress={onTogglecalificar} 
+            style={styles.toggleButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons 
+              name={hasRated ? "star" : "star-outline"} 
+              size={24} 
+              color={hasRated ? "#FFD700" : "#999"} 
+            />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }

@@ -14,13 +14,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { isSupabaseEnabled } from '../../config/supabase';
 import { buildApiUrl } from '../../config/api';
 
-// Hooks personalizados
 import { useChatMessages } from '../../hooks/chat/useChatMessages';
 import { useChatPresence } from '../../hooks/chat/useChatPresence';
 import { useChatRealtime } from '../../hooks/chat/useChatRealtime';
 import { useChatExchange } from '../../hooks/chat/useChatExchange';
 
-// Componentes
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessageList } from '../../components/chat/ChatMessageList';
 import { ChatInput } from '../../components/chat/ChatInput';
@@ -30,7 +28,6 @@ import { RatingModal } from '../../components/chat/RatingModal';
 import CustomAlert from '../../components/CustomAlert';
 import { useAlertDialog } from '../../hooks/useAlertDialog';
 
-// Tipos
 import type { ChatUser } from '../../types/chat';
 
 export default function ChatRoomScreen() {
@@ -119,7 +116,6 @@ export default function ChatRoomScreen() {
     };
   }, [chatId, user]);
 
-  // Verificar si el usuario ya calificó
   useEffect(() => {
     const checkRating = async () => {
       if (!selectedExchange || !user?.id_usuario) return;
@@ -153,17 +149,20 @@ export default function ChatRoomScreen() {
     
     const otherUserId = selectedExchange.id_usuario_solicitante;
     
-    router.push({
-      pathname: '/select-book-for-exchange',
-      params: {
-        chatId: chatId.toString(),
-        exchangeId: selectedExchange.id_intercambio.toString(),
-        otherUserId: otherUserId.toString(),
-      },
-    } as any);
+    setShowExchangeModal(false);
+    
+    setTimeout(() => {
+      router.push({
+        pathname: '/libro_seleccionado',
+        params: {
+          chatId: chatId.toString(),
+          exchangeId: selectedExchange.id_intercambio.toString(),
+          otherUserId: otherUserId.toString(),
+        },
+      } as any);
+    }, 300);
   };
 
-  // Pantalla de carga
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -194,9 +193,17 @@ export default function ChatRoomScreen() {
             }
           }}
           showExchangeCard={showExchangeCard}
-          onToggleExchangeCard={() => setShowExchangeCard(!showExchangeCard)}
+          onToggleExchangeCard={() => {
+            if (exchanges.length === 0) {
+              showAlert('Sin intercambios', 'No hay intercambios activos en este chat todavía', [{ text: 'OK', onPress: hideAlert }]);
+            } else {
+              setShowExchangeCard(!showExchangeCard);
+            }
+          }}
           onTogglecalificar={() => {
-            if (!hasRated && selectedExchange?.confirmacion_solicitante && selectedExchange?.confirmacion_receptor) {
+            if (exchanges.length === 0) {
+              showAlert('Sin intercambios', 'No hay intercambios para calificar en este chat', [{ text: 'OK', onPress: hideAlert }]);
+            } else if (!hasRated && selectedExchange?.confirmacion_solicitante && selectedExchange?.confirmacion_receptor) {
               setShowRatingModal(true);
             } else if (hasRated) {
               showAlert('Ya calificaste', 'Ya has calificado este intercambio', [{ text: 'OK', onPress: hideAlert }]);

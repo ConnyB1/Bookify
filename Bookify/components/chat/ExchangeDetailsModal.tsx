@@ -186,16 +186,19 @@ export function ExchangeDetailsModal({
 
       const data = await response.json();
       if (data.success) {
+        // Cerrar el modal PRIMERO para evitar problemas de estado
+        onClose();
+        
+        // Luego actualizar
+        if (onExchangeUpdate) {
+          await onExchangeUpdate();
+        }
+        
+        // Finalmente mostrar la alerta
         showAlert('Intercambio Cancelado', 'El intercambio ha sido cancelado exitosamente', [
           {
             text: 'OK',
-            onPress: async () => {
-              hideAlert();
-              onClose();
-              if (onExchangeUpdate) {
-                await onExchangeUpdate();
-              }
-            },
+            onPress: hideAlert,
           },
         ]);
       } else {
@@ -240,16 +243,16 @@ export function ExchangeDetailsModal({
 
       const data = await response.json();
       if (data.success) {
+        onClose();
+        
+        if (onExchangeUpdate) {
+          await onExchangeUpdate();
+        }
+        
         showAlert('Éxito', 'El intercambio ha sido eliminado del historial', [
           {
             text: 'OK',
-            onPress: async () => {
-              hideAlert();
-              onClose();
-              if (onExchangeUpdate) {
-                await onExchangeUpdate();
-              }
-            },
+            onPress: hideAlert,
           },
         ]);
       } else {

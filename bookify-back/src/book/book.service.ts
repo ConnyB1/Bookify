@@ -29,10 +29,9 @@ export class BookService {
     private chatUsuarioRepository: Repository<ChatUsuario>,
     @InjectRepository(Mensaje)
     private mensajeRepository: Repository<Mensaje>,
-  ) {}
+  ) { }
 
   async findAll(userId?: number): Promise<any[]> {
-    // 🎯 FEATURE FLAG: Desactiva el filtro de proximidad cambiando FEATURES.PROXIMITY_FILTER_ENABLED a false
     if (!FEATURES.PROXIMITY_FILTER_ENABLED) {
       console.log('[DEBUG] ⚠️ Filtro de proximidad DESACTIVADO globalmente - retornando todos los libros');
       const libros = await this.bookRepository
@@ -45,8 +44,6 @@ export class BookService {
         .getMany();
       return libros;
     }
-
-    // Si no hay userId, retornar todos los libros (comportamiento original)
     if (!userId) {
       console.log('[DEBUG] Sin userId - retornando todos los libros');
       const libros = await this.bookRepository
@@ -60,12 +57,10 @@ export class BookService {
       return libros;
     }
 
-    // Obtener la ubicación del usuario que hace la búsqueda
     const usuario = await this.usuarioRepository.findOne({
       where: { id_usuario: userId },
     });
 
-    // Si el usuario no tiene ubicación configurada, retornar todos
     if (!usuario || !usuario.latitud || !usuario.longitud) {
       console.log('[DEBUG] Usuario sin ubicación configurada - retornando todos los libros');
       const libros = await this.bookRepository
@@ -82,13 +77,6 @@ export class BookService {
     console.log(`[DEBUG] Usuario ${userId} busca desde: ${usuario.ciudad} (${usuario.latitud}, ${usuario.longitud})`);
     console.log(`[DEBUG] Radio de búsqueda: ${usuario.radio_busqueda_km} km`);
 
-    // 🚀 Consulta OPTIMIZADA con ST_DWithin (usa índices espaciales)
-    // ST_DWithin es mucho más rápido que ST_Distance porque:
-    // 1. Aprovecha índices GiST/SP-GiST de PostGIS
-    // 2. Solo evalúa puntos dentro del radio (no calcula todas las distancias)
-    // 3. Retorna boolean, no float (más eficiente)
-    
-    // Primero, obtener los IDs de libros dentro del radio con sus distancias
     const librosConDistanciaRaw = await this.bookRepository
       .createQueryBuilder('libro')
       .innerJoin('libro.propietario', 'propietario')
@@ -127,15 +115,12 @@ export class BookService {
     if (librosConDistanciaRaw.length === 0) {
       return [];
     }
-
-    // Crear mapa de distancias
     const distanciaMap = new Map<number, number>();
     const libroIds = librosConDistanciaRaw.map(row => {
       distanciaMap.set(parseInt(row.id_libro), parseFloat(row.distancia_km));
       return parseInt(row.id_libro);
     });
 
-    // Obtener los libros completos con sus relaciones
     const libros = await this.bookRepository
       .createQueryBuilder('libro')
       .leftJoinAndSelect('libro.propietario', 'propietario')
@@ -145,7 +130,6 @@ export class BookService {
       .orderBy('imagenes.id_imagen', 'ASC')
       .getMany();
 
-    // Mapear con distancias y ordenar
     const librosConDistancia = libros
       .map((libro) => ({
         ...libro,
@@ -167,8 +151,7 @@ export class BookService {
           lng: usuario.longitud,
         },
       });
-      
-      // 🔍 DEBUG: Mostrar todos los libros con sus distancias
+
       console.log('[DEBUG] Todos los libros encontrados:');
       librosConDistancia.forEach((libro, i) => {
         console.log(`  ${i + 1}. "${libro.titulo}" - ${libro.distancia_km} km (${libro.propietario.latitud}, ${libro.propietario.longitud})`);
@@ -190,21 +173,21 @@ export class BookService {
     // Manejar géneros si existen
     if (generos && generos.length > 0) {
       const generosEntities: Genero[] = [];
-      
+
       for (const generoNombre of generos) {
         let genero = await this.generoRepository.findOne({
           where: { nombre: generoNombre }
         });
-        
+
         // Si el género no existe, crearlo
         if (!genero) {
           genero = this.generoRepository.create({ nombre: generoNombre });
           await this.generoRepository.save(genero);
         }
-        
+
         generosEntities.push(genero);
       }
-      
+
       libro.generos = generosEntities;
     }
 
@@ -214,7 +197,7 @@ export class BookService {
     // Guardar las imágenes en la tabla libro_imagen
     if (imagenes && imagenes.length > 0) {
       console.log('[DEBUG] Imágenes a guardar:', imagenes);
-      
+
       const imagenesEntities: LibroImagen[] = [];
       for (const imagenUrl of imagenes) {
         const imagen = this.libroImagenRepository.create({
@@ -223,7 +206,7 @@ export class BookService {
         });
         imagenesEntities.push(imagen);
       }
-      
+
       const savedImages = await this.libroImagenRepository.save(imagenesEntities);
       console.log('[DEBUG] Imágenes guardadas:', savedImages);
       savedBook.imagenes = savedImages;
@@ -256,7 +239,7 @@ export class BookService {
 
   async countByUser(userId: number): Promise<number> {
     return await this.bookRepository.count({
-      where: { 
+      where: {
         id_propietario: userId,
         estado: Not(EstadoLibro.EXCHANGED)
       },
@@ -265,7 +248,7 @@ export class BookService {
 
   async delete(id: number): Promise<void> {
     console.log(`[BookService] Eliminando libro ID: ${id}`);
-    
+
     // 1️⃣ Buscar todos los intercambios que involucran este libro
     const intercambios = await this.intercambioRepository.find({
       where: [
@@ -273,50 +256,50 @@ export class BookService {
         { id_libro_ofertado_fk: id }
       ]
     });
-    
+
     const intercambioIds = intercambios.map(i => i.id_intercambio);
     console.log(`[BookService] Intercambios encontrados: ${intercambioIds.length}`, intercambioIds);
-    
+
     if (intercambioIds.length > 0) {
       // 2️⃣ Buscar todos los chats asociados a estos intercambios
       const chats = await this.chatRepository.find({
         where: { id_intercambio: In(intercambioIds) }
       });
-      
+
       const chatIds = chats.map(c => c.id_chat);
       console.log(`[BookService] Chats encontrados: ${chatIds.length}`, chatIds);
-      
+
       if (chatIds.length > 0) {
         // 3️⃣ Eliminar mensajes de estos chats
-        const mensajesResult = await this.mensajeRepository.delete({ 
-          id_chat: In(chatIds) 
+        const mensajesResult = await this.mensajeRepository.delete({
+          id_chat: In(chatIds)
         });
         console.log(`[BookService] Mensajes eliminados: ${mensajesResult.affected || 0}`);
-        
+
         // 4️⃣ Eliminar relaciones chat_usuario
-        const chatUsuariosResult = await this.chatUsuarioRepository.delete({ 
-          id_chat: In(chatIds) 
+        const chatUsuariosResult = await this.chatUsuarioRepository.delete({
+          id_chat: In(chatIds)
         });
         console.log(`[BookService] Relaciones chat_usuario eliminadas: ${chatUsuariosResult.affected || 0}`);
-        
+
         // 5️⃣ Eliminar los chats
-        const chatsResult = await this.chatRepository.delete({ 
-          id_chat: In(chatIds) 
+        const chatsResult = await this.chatRepository.delete({
+          id_chat: In(chatIds)
         });
         console.log(`[BookService] Chats eliminados: ${chatsResult.affected || 0}`);
       }
-      
+
       // 6️⃣ Eliminar los intercambios
-      const intercambiosResult = await this.intercambioRepository.delete({ 
-        id_intercambio: In(intercambioIds) 
+      const intercambiosResult = await this.intercambioRepository.delete({
+        id_intercambio: In(intercambioIds)
       });
       console.log(`[BookService] Intercambios eliminados: ${intercambiosResult.affected || 0}`);
     }
-    
+
     // 7️⃣ Eliminar las imágenes del libro
     const imagenesResult = await this.libroImagenRepository.delete({ id_libro: id });
     console.log(`[BookService] Imágenes eliminadas: ${imagenesResult.affected || 0}`);
-    
+
     // 8️⃣ Finalmente, eliminar el libro
     const libroResult = await this.bookRepository.delete({ id_libro: id });
     console.log(`[BookService] Libro eliminado exitosamente. Affected rows: ${libroResult.affected || 0}`);
@@ -348,7 +331,7 @@ export class BookService {
         ) AS distance`,
       [lon1, lat1, lon2, lat2],
     );
-    
+
     return result[0]?.distance || 0;
   }
 
@@ -387,7 +370,7 @@ export class BookService {
     const params = points.flatMap(p => [p.lon1, p.lat1, p.lon2, p.lat2]);
 
     const results = await this.bookRepository.query(fullQuery, params);
-    
+
     // Retornar distancias en el mismo orden que los puntos originales
     return results.map((r: any) => r.distance || 0);
   }

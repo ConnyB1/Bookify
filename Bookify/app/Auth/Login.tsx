@@ -96,18 +96,16 @@ export default function LoginScreen() {
         // Guardar en el contexto de autenticación
         await login(result.data.user, result.data.tokens);
         
-        showAlert(
-          '¡Inicio de Sesión Exitoso!',
-          'Bienvenido de nuevo a Bookify',
-          [
-            {
-              text: 'Continuar',
-              onPress: () => {
-                router.replace('/(tabs)/Inicio');
-              }
-            }
-          ]
-        );
+        // Navegar PRIMERO
+        router.replace('/(tabs)/Inicio');
+        
+        // Luego mostrar la alerta de éxito (no bloqueante)
+        setTimeout(() => {
+          showAlert(
+            '¡Inicio de Sesión Exitoso!',
+            'Bienvenido de nuevo a Bookify'
+          );
+        }, 300);
       } else {
         showAlert('Error', result.message || 'Credenciales inválidas');
       }

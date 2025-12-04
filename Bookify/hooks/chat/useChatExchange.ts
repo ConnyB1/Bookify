@@ -48,12 +48,16 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
     }
     
     loadExchangeInfo();
-    // Polling cada 5 segundos para actualizaciones más rápidas
+    // Polling cada 10 segundos (reducido para evitar bucles infinitos)
     const interval = setInterval(() => {
       loadExchangeInfoSilent();
-    }, 5000);
+    }, 10000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      // Limpiar el ref al desmontar
+      lastStatusRef.current = '';
+    };
   }, [chatId, currentUserId]);
 
   const loadExchangeInfo = async () => {
@@ -98,17 +102,24 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
             const isReceiver = currentUserId === updatedSelectedExchange.id_usuario_solicitante_receptor;
             const hasNoOfferedBook = !updatedSelectedExchange.id_libro_ofertado;
             setCanSelectBook(isReceiver && hasNoOfferedBook);
+          } else {
+            // El intercambio seleccionado ya no existe, limpiarlo
+            console.log('[useChatExchange] Selected exchange no longer exists, clearing');
+            setSelectedExchange(null);
+            setCanSelectBook(false);
           }
         }
       } else {
         console.log('[useChatExchange] No exchanges found');
         setExchanges([]);
         setSelectedExchange(null);
+        setCanSelectBook(false);
       }
     } catch (error) {
       console.error('[useChatExchange] Error:', error);
       setExchanges([]);
       setSelectedExchange(null);
+      setCanSelectBook(false);
     } finally {
       setLoading(false);
     }
@@ -124,18 +135,22 @@ export function useChatExchange(chatId: number, currentUserId?: number) {
 
       const data = await response.json();
       
-      if (data.success && data.data) {
+      if (data.success) {
         // Crear un hash del estado actual para comparar
-        const currentStatusHash = JSON.stringify(data.data.map((ex: ExchangeInfo) => ({
-          id: ex.id_intercambio,
-          id_libro_ofertado: ex.id_libro_ofertado,
-          confirmacion_solicitante: ex.confirmacion_solicitante,
-          confirmacion_receptor: ex.confirmacion_receptor,
-          ubicacion_encuentro_nombre: ex.ubicacion_encuentro_nombre,
-        })));
+        const currentStatusHash = JSON.stringify({
+          count: data.data?.length || 0,
+          exchanges: data.data?.map((ex: ExchangeInfo) => ({
+            id: ex.id_intercambio,
+            id_libro_ofertado: ex.id_libro_ofertado,
+            confirmacion_solicitante: ex.confirmacion_solicitante,
+            confirmacion_receptor: ex.confirmacion_receptor,
+            ubicacion_encuentro_nombre: ex.ubicacion_encuentro_nombre,
+          })) || []
+        });
         
         // Solo recargar si el hash cambió
         if (lastStatusRef.current !== currentStatusHash) {
+          console.log('[useChatExchange] Status changed, reloading');
           lastStatusRef.current = currentStatusHash;
           loadExchangeInfo();
         }

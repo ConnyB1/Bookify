@@ -133,16 +133,16 @@ export default function RegisterScreen() {
           }
         }
         
-        showAlert(
-          '¡Registro Exitoso!',
-          'Tu cuenta ha sido creada correctamente. ¡Bienvenido a Bookify!',
-          [
-            {
-              text: 'Comenzar',
-              onPress: () => router.replace('/(tabs)/Inicio'),
-            },
-          ]
-        );
+        // Navegar PRIMERO
+        router.replace('/(tabs)/Inicio');
+        
+        // Luego mostrar la alerta de éxito (no bloqueante)
+        setTimeout(() => {
+          showAlert(
+            '¡Registro Exitoso!',
+            'Tu cuenta ha sido creada correctamente. ¡Bienvenido a Bookify!'
+          );
+        }, 300);
       } else {
         showAlert('Error', result.message || 'No se pudo registrar el usuario');
       }
