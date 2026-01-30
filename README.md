@@ -4,6 +4,8 @@ Bookify es una plataforma móvil diseñada para fomentar la lectura mediante el 
 
 El objetivo principal es facilitar el acceso a la lectura de manera económica y sustentable, promoviendo la economía circular a través del intercambio de libros.
 
+# <img src="./assets/main.jpeg" width="40" height="70" /> Bookify
+# <img src="./assets/libro.jpeg" width="40" height="70" /> Bookify
 ## Características Principales
 
 * **Exploración Georreferenciada:** Visualización de libros disponibles cerca de tu ubicación mediante un mapa interactivo.
