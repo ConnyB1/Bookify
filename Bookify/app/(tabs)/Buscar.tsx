@@ -1,155 +1,96 @@
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
-} from 'react-native';
+// 📦 Importando componentes súper necesarios 📦
+import { ThemedView } from '@/components/themed-view'; // 🎨 Vista con tema
+import { ThemedText } from '@/components/themed-text'; // ✍️ Texto con tema
+import LocationRequiredScreen from '@/components/LocationRequiredScreen'; // 📍 ¿Dónde estás?
+import SearchBar from '@/components/SearchBar'; // 🔍 La barrita mágica
+import GenreSelectorModal from '@/components/Bookify-componentes/GenreSelectorModal'; // 🎭 El modal de géneros
+import SearchResults from '@/components/Bookify-componentes/SearchResults'; // 📉 Resultados (ojalá sean buenos)
+import React, { useState } from 'react'; // ⚛️ El núcleo de todo
+import { StyleSheet, View } from 'react-native'; // 📱 Cosas nativas
+import { useBookSearch } from '../../hooks/useBookSearch'; // 🎣 Hook personalizado (muy pro)
+import { GENRES } from '../../constants/search'; // 📚 Constantes de géneros
+import Header from '@/components/Bookify-componentes/Encabezadobook'; // 🧢 El sombrero de la app
+import { SafeAreaView } from 'react-native-safe-area-context'; // 🛡️ Zona segura activada
 
-const GENRES = [
-  'Ciencia Ficción',
-  'Misterio',
-  'Fantasía',
-  'Romance',
-  'Terror',
-  'Biografía',
-  'Historia',
-  'Aventura',
-];
-
+// 🚀 ¡Aquí comienza la magia! Componente principal
 export default function BuscarScreen() {
-  const [searchText, setSearchText] = useState('');
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  // 🎭 Estado para mostrar u ocultar el modal (suspenso...)
+  const [showGenreModal, setShowGenreModal] = useState(false);
 
-  const toggleGenre = (genre: string) => {
-    setSelectedGenres(prev => 
-      prev.includes(genre) 
-        ? prev.filter(g => g !== genre)
-        : [...prev, genre]
-    );
-  };
+  // 🎣 Destructurando nuestro súper hook
+  const {
+    searchText,     // 📝 Lo que escribe el usuario
+    setSearchText,  // ✍️ Función para cambiar lo que escribe
+    selectedGenres, // 🏷️ Géneros elegidos
+    books,          // 📚 La lista de libros (el tesoro)
+    loading,        // ⏳ ¿Estamos cargando? (paciencia...)
+    toggleGenre,    // 🔀 Palanca de géneros
+    refetch,        // 🔄 ¡Inténtalo de nuevo!
+  } = useBookSearch();
 
+  // 🖼️ Renderizado de la UI
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ThemedView style={styles.container}>
-        {/* Título */}
-        <ThemedText style={styles.title}>Buscar</ThemedText>
-
-        {/* Barra de búsqueda */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Busca por título, autor..."
-            placeholderTextColor="#666"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-        </View>
-
-        {/* Sección de Géneros */}
-        <View style={styles.genresSection}>
-          <ThemedText style={styles.sectionTitle}>Géneros</ThemedText>
+    // 🌍 Envolvemos todo porque necesitamos tu ubicación (no preguntes por qué)
+    <LocationRequiredScreen>
+      {/* 🛡️ Protegiendo el notch del iPhone */}
+      <SafeAreaView style={styles.safeArea}>
+        
+        {/* 🎨 Contenedor principal con estilo */}
+        <ThemedView style={styles.container}>
           
-          <ScrollView 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.genresContainer}
-          >
-            {GENRES.map((genre) => (
-              <TouchableOpacity
-                key={genre}
-                style={[
-                  styles.genreButton,
-                  selectedGenres.includes(genre) && styles.genreButtonActive
-                ]}
-                onPress={() => toggleGenre(genre)}
-                activeOpacity={0.7}
-              >
-                <ThemedText 
-                  style={[
-                    styles.genreText,
-                    selectedGenres.includes(genre) && styles.genreTextActive
-                  ]}
-                >
-                  {genre}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </ThemedView>
-    </SafeAreaView>
+          {/* 🧢 Cabecera de la vista */}
+          <View style={styles.header}>
+            {/* 📢 Título gritando en negrita */}
+            <ThemedText style={styles.title}>Buscar</ThemedText>
+          </View>
+          
+          {/* 🔍 Componente de búsqueda (haz tu magia) */}
+          <SearchBar
+            value={searchText}
+            onChangeText={setSearchText} // 🎹 Escuchando tecleo
+            placeholder="Busca por título, autor..." // 👻 Texto fantasma motivacional
+            onFilterPress={() => setShowGenreModal(true)} // 🔘 ¡Click en filtros!
+            hasActiveFilters={selectedGenres.length > 0} // 🚦 ¿Hay filtros?
+          />
+
+          {/* 📦 Lista de resultados */}
+          <SearchResults
+            books={books}
+            loading={loading} // 🌀 Girando...
+            searchText={searchText}
+            selectedGenres={selectedGenres}
+          />
+        </ThemedView>
+
+        {/* 👻 El modal que aparece de la nada */}
+        <GenreSelectorModal
+          visible={showGenreModal} // 👀 ¿Me ves?
+          genres={GENRES}
+          selectedGenres={selectedGenres}
+          onGenreToggle={toggleGenre} // 🎮 Acción de toggle
+          onClose={() => setShowGenreModal(false)} // ❌ Adiós modal
+        />
+      </SafeAreaView>
+    </LocationRequiredScreen>
   );
 }
 
+// 🎨 Estilos (porque el código feo no compila en el corazón) 💅
 const styles = StyleSheet.create({
   safeArea: {
-    flex: 1,
-    backgroundColor: '#151718',
+    flex: 1, // 📏 Ocupa todo el espacio
+    backgroundColor: '#151718', // 🌑 Modo oscuro forever
   },
   container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    flex: 1, // 💪 Músculo flex
+    paddingHorizontal: 16, // ↔️ Aire a los lados
+    paddingTop: 20, // ⬆️ Aire arriba
+  },
+  header: {
+    marginBottom: 20, // ⬇️ Empuja lo de abajo
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    marginBottom: 30,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    color: 'white',
-    fontSize: 16,
-    paddingVertical: 0,
-  },
-  genresSection: {
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  genresContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  genreButton: {
-    backgroundColor: '#333',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginBottom: 12,
-  },
-  genreButtonActive: {
-    backgroundColor: '#d500ff',
-  },
-  genreText: {
-    color: '#ccc',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  genreTextActive: {
-    color: 'white',
-    fontWeight: 'bold',
+    fontSize: 28, // 📏 Texto grandote
+    fontWeight: 'bold', // 🏋️‍♂️ Texto fuerte
   },
 });

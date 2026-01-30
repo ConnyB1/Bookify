@@ -1,0 +1,58 @@
+export const API_CONFIG = {
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || '',
+
+  ENDPOINTS: {
+    UPLOAD_IMAGE: '/api/images/upload/book',
+    BOOKS: '/api/books',
+    BOOKS_BY_USER: '/api/books/user',
+    REGISTER: '/api/auth/register',
+    LOGIN: '/api/auth/login',
+    CONFIRM_EMAIL: '/api/auth/confirm',
+    RESEND_CODE: '/api/auth/resend-code',
+    GET_PROFILE: '/api/auth/me',
+    EXCHANGE_REQUEST: '/api/exchange/request',
+    EXCHANGE_RECEIVED: '/api/exchange/received',
+    EXCHANGE_SENT: '/api/exchange/sent',
+    NOTIFICATIONS: '/api/notifications',
+    NOTIFICATIONS_UNREAD_COUNT: '/api/notifications/unread-count',
+
+    UPLOAD_PROFILE_IMAGE: '/api/images/upload/profile', 
+    UPDATE_PROFILE_PICTURE: '/api/auth/profile/picture', 
+  }
+};
+
+// Log para debugging
+console.log('[API CONFIG] BASE_URL:', API_CONFIG.BASE_URL);
+console.log('[API CONFIG] EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
+
+export const buildApiUrl = (endpoint: string): string => {
+  return `${API_CONFIG.BASE_URL}${endpoint}`;
+};
+
+interface PropietarioDTO {
+    id_usuario: number;
+    nombre: string; 
+}
+
+interface ImagenDTO {
+    url: string;
+}
+
+interface GeneroDTO {
+    nombre: string;
+}
+
+export interface LibroDTO {
+    id_libro: number;
+    titulo: string;
+    autor: string;
+    descripcion?: string; 
+    
+    estado: 'available' | 'exchange_pending' | 'unavailable'; 
+    
+    propietario: PropietarioDTO; 
+    
+    generos?: GeneroDTO[];
+    
+    imagenes?: ImagenDTO[];
+}
